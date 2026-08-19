@@ -7,23 +7,18 @@
     "icon": "./assets/icon.png",
     "scheme": "rehabapp",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "backgroundColor": "#0B0B0C",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0B0B0C"
-    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "in.hundredmph.app"
     },
     "android": {
+      "package": "in.hundredmph.app",
       "adaptiveIcon": {
         "backgroundColor": "#0B0B0C",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -41,6 +36,13 @@
           "backgroundColor": "#0B0B0C"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "60958903-a7d8-4829-876c-5eaec839bd95"
+      }
+    },
+    "owner": "ayushtyagi100mphs-team"
   }
 }
