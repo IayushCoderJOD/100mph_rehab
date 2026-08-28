@@ -1,19 +1,63 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { useEffect, useState } from 'react';
+import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { mediaUrl } from '@/api';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 
 type VideoPosterProps = {
-  /** Null until real footage is attached — the poster says so rather than lying. */
+  /** A catalogue media key, or null until real footage is attached. */
   videoUrl: string | null;
+  /** The still shown before playback starts. Optional; the frame works without it. */
+  posterUrl?: string | null;
   caption?: string;
-  onPlay?: () => void;
 };
 
-/** The demonstration slot at the top of an exercise guide. */
-export function VideoPoster({ videoUrl, caption, onPlay }: VideoPosterProps) {
+/**
+ * The demonstration slot at the top of an exercise guide.
+ *
+ * Nothing is fetched until the member taps. A guide screen is often opened to
+ * read the instructions rather than to watch, and the whole point of hosting
+ * the library on a zero-egress CDN is lost if every visit pulls a video nobody
+ * asked for. Once tapped, `useCaching` keeps the file on the device — the
+ * second viewing of an exercise, and every viewing after it, costs nothing and
+ * works with no signal at all, which is the normal condition of a gym.
+ */
+export function VideoPoster({ videoUrl, posterUrl, caption }: VideoPosterProps) {
   const { theme } = useTheme();
-  const playable = !!videoUrl && !!onPlay;
+  const [started, setStarted] = useState(false);
+
+  const uri = mediaUrl(videoUrl);
+  const poster = mediaUrl(posterUrl);
+  const playable = !!uri;
+
+  // Null until tapped, so constructing the player costs no network. The hook
+  // itself stays unconditional — `VideoSource` accepts null for exactly this.
+  const player = useVideoPlayer(started && uri ? { uri, useCaching: true } : null, (instance) => {
+    // Demos are short and read better on repeat than they do paused on the
+    // last frame, so the loop is the resting state rather than a preference.
+    instance.loop = true;
+  });
+
+  useEffect(() => {
+    if (started) player.play();
+  }, [started, player]);
+
+  if (started && playable) {
+    return (
+      <VideoView
+        player={player}
+        style={[
+          styles.frame,
+          { borderColor: theme.colors.border, borderRadius: theme.radius.lg },
+        ]}
+        contentFit="contain"
+        fullscreenOptions={{ enable: true }}
+        nativeControls
+      />
+    );
+  }
 
   return (
     <View
@@ -26,8 +70,14 @@ export function VideoPoster({ videoUrl, caption, onPlay }: VideoPosterProps) {
         },
       ]}
     >
+      {/* The poster is a bonus, not a requirement: the placeholder below was
+          designed to stand on its own and still does when no still exists. */}
+      {poster ? (
+        <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      ) : null}
+
       <Pressable
-        onPress={onPlay}
+        onPress={() => setStarted(true)}
         disabled={!playable}
         accessibilityRole="button"
         accessibilityLabel={playable ? 'Play demonstration' : 'Demonstration coming soon'}
@@ -58,10 +108,12 @@ export function VideoPoster({ videoUrl, caption, onPlay }: VideoPosterProps) {
 const styles = StyleSheet.create({
   frame: {
     aspectRatio: 16 / 10,
+    width: '100%',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 14,
+    overflow: 'hidden',
   },
   play: {
     width: 64,

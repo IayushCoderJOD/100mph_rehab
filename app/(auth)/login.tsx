@@ -2,42 +2,44 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useAuth } from '@/auth/AuthProvider';
-import { PhoneField, TextField } from '@/components/form';
-import { Button, Logo, Screen, SegmentedControl, Text } from '@/components/ui';
+import { TextField } from '@/components/form';
+import { Button, Card, Logo, Screen, Text } from '@/components/ui';
+import { mock } from '@/data';
 import { useTheme } from '@/theme';
-
-type Method = 'phone' | 'email';
-
-const METHODS: { label: string; value: Method }[] = [
-  { label: 'Phone', value: 'phone' },
-  { label: 'Email', value: 'email' },
-];
 
 export default function LoginScreen() {
   const { theme } = useTheme();
   const router = useRouter();
-  const { requestOtp, signInWithPassword } = useAuth();
+  const { signInWithPassword, error: authError } = useAuth();
 
-  const [method, setMethod] = useState<Method>('phone');
-  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const phoneValid = phone.length >= 10;
-  const emailValid = email.includes('@') && password.length >= 4;
-  const valid = method === 'phone' ? phoneValid : emailValid;
+  const valid = email.includes('@') && password.length >= 4;
 
   const handleSubmit = async () => {
     if (!valid) return;
-    if (method === 'phone') {
-      requestOtp(`+91 ${phone}`);
-      router.push('/(auth)/verify');
+
+    setError(null);
+    setLoading(true);
+    const ok = await signInWithPassword(email, password);
+    setLoading(false);
+
+    if (!ok) {
+      // The provider has already mapped the server's error code to copy, so a
+      // suspended account and a wrong password read differently.
+      setError(null);
       return;
     }
-    setLoading(true);
-    await signInWithPassword(email, password);
-    router.replace('/programs');
+    router.replace('/(tabs)');
+  };
+
+  const useDemo = (demoEmail: string, demoPassword: string) => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setError(null);
   };
 
   return (
@@ -49,63 +51,73 @@ export default function LoginScreen() {
         <View style={{ height: theme.spacing(6) }} />
         <Text variant="display">Welcome back</Text>
         <Text variant="subtitle" color="textSecondary" style={styles.subtitle}>
-          Sign in to your program with the details your coach set up.
+          Sign in with the details your coach set up for you.
         </Text>
-      </View>
-
-      <View style={styles.toggle}>
-        <SegmentedControl segments={METHODS} value={method} onChange={setMethod} />
       </View>
 
       <View style={styles.form}>
-        {method === 'phone' ? (
-          <>
-            <Text variant="label" color="textSecondary" style={styles.fieldLabel}>
-              PHONE NUMBER
-            </Text>
-            <PhoneField value={phone} onChangeText={setPhone} autoFocus />
-          </>
-        ) : (
-          <View style={styles.emailForm}>
-            <TextField
-              label="EMAIL"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              keyboardType="email-address"
-              autoComplete="email"
-              autoFocus
-            />
-            <TextField
-              label="PASSWORD"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              secure
-              autoComplete="password"
-            />
-            <Pressable hitSlop={8} style={styles.forgot}>
-              <Text variant="bodyStrong" color="accentText">
-                Forgot password?
-              </Text>
-            </Pressable>
-          </View>
-        )}
+        <TextField
+          label="EMAIL"
+          value={email}
+          onChangeText={setEmail}
+          placeholder="you@example.com"
+          keyboardType="email-address"
+          autoComplete="email"
+          autoCapitalize="none"
+          autoFocus
+        />
+        <TextField
+          label="PASSWORD"
+          value={password}
+          onChangeText={setPassword}
+          placeholder="••••••••"
+          secure
+          autoComplete="password"
+          autoCapitalize="none"
+        />
+        <Pressable hitSlop={8} style={styles.forgot}>
+          <Text variant="bodyStrong" color="accentText">
+            Forgot password?
+          </Text>
+        </Pressable>
       </View>
 
+      {error ?? authError ? (
+        <Text variant="caption" color="danger" style={styles.error}>
+          {error ?? authError}
+        </Text>
+      ) : null}
+
       <View style={styles.footer}>
-        <Button
-          label={method === 'phone' ? 'Continue' : 'Log In'}
-          onPress={handleSubmit}
-          disabled={!valid}
-          loading={loading}
-        />
+        <Button label="Log In" onPress={handleSubmit} disabled={!valid} loading={loading} />
         <Text variant="caption" color="textMuted" align="center" style={styles.note}>
-          {method === 'phone'
-            ? "We'll text you a one-time code to confirm it's you."
-            : 'Access is provisioned by your coach — no public sign-up.'}
+          Access is provisioned by your coach — there is no public sign-up.
         </Text>
       </View>
+
+      {__DEV__ ? (
+        <Card variant="alt" style={styles.demo}>
+          <Text variant="label" color="textSecondary" style={styles.demoLabel}>
+            DEMO ACCOUNTS · DEV ONLY
+          </Text>
+          {mock.demoLogins.map((demo) => (
+            <Pressable
+              key={demo.email}
+              onPress={() => useDemo(demo.email, demo.password)}
+              style={styles.demoRow}
+              accessibilityRole="button"
+              accessibilityLabel={`Fill in the ${demo.role} demo account`}
+            >
+              <Text variant="caption" color="accentText">
+                {demo.role}
+              </Text>
+              <Text variant="caption" color="textSecondary" numberOfLines={1}>
+                {demo.email} · {demo.password}
+              </Text>
+            </Pressable>
+          ))}
+        </Card>
+      ) : null}
     </Screen>
   );
 }
@@ -114,11 +126,12 @@ const styles = StyleSheet.create({
   header: { alignItems: 'flex-start', paddingTop: 16 },
   logo: { alignSelf: 'center' },
   subtitle: { marginTop: 10, maxWidth: '92%' },
-  toggle: { marginTop: 28 },
-  form: { marginTop: 24 },
-  fieldLabel: { marginBottom: 12 },
-  emailForm: { gap: 18 },
+  form: { marginTop: 32, gap: 18 },
   forgot: { alignSelf: 'flex-end' },
+  error: { marginTop: 18 },
   footer: { marginTop: 40 },
   note: { marginTop: 16 },
+  demo: { marginTop: 28, gap: 10 },
+  demoLabel: { letterSpacing: 1.2 },
+  demoRow: { gap: 2 },
 });

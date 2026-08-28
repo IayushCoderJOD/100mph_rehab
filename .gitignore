@@ -31,7 +31,9 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+!.env.example
 
 # typescript
 *.tsbuildinfo
@@ -39,3 +41,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# demonstration footage — raw sources in, encoded renditions out.
+# Both are large and neither belongs in the repo: the encoded files live in the
+# media bucket, and the keys that point at them are what gets committed.
+/raw
+/dist-media

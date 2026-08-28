@@ -1,50 +1,27 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-
-const STORAGE_KEY = 'app.program.selected';
+import { createContext, useContext, useMemo } from 'react';
+import { useAuth } from '@/auth/AuthProvider';
 
 type ProgramContextValue = {
-  /** The program the user picked after signing in, or null before they have. */
+  /** The program this user is on, or null when signed out. */
   programId: string | null;
-  hasSelected: boolean;
-  selectProgram: (id: string) => void;
-  clearProgram: () => void;
 };
 
 const ProgramContext = createContext<ProgramContextValue | null>(null);
 
 /**
- * Holds the program chosen in the step between sign-in and the main tabs.
- * Backed by AsyncStorage for V1; this moves to the user's record on the
- * server once the backend exists.
+ * Which program the signed-in user is on. There is no selection step: a coach
+ * assigns the program when they create the account, so this is a read of the
+ * user's own record and nothing else. It stays a provider because the schedule
+ * and the content bundle both need one answer to "which program", and because
+ * a coach reassigning one should move the whole app at once.
  */
 export function ProgramProvider({ children }: { children: React.ReactNode }) {
-  const [programId, setProgramId] = useState<string | null>(null);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      if (stored) setProgramId(stored);
-      setHydrated(true);
-    });
-  }, []);
-
-  const selectProgram = (id: string) => {
-    setProgramId(id);
-    AsyncStorage.setItem(STORAGE_KEY, id);
-  };
-
-  const clearProgram = () => {
-    setProgramId(null);
-    AsyncStorage.removeItem(STORAGE_KEY);
-  };
+  const { user } = useAuth();
 
   const value = useMemo<ProgramContextValue>(
-    () => ({ programId, hasSelected: !!programId, selectProgram, clearProgram }),
-    [programId]
+    () => ({ programId: user?.active_program_id ?? null }),
+    [user?.active_program_id]
   );
-
-  if (!hydrated) return null;
 
   return <ProgramContext.Provider value={value}>{children}</ProgramContext.Provider>;
 }

@@ -20,14 +20,40 @@ export type ProgressionMetric = 'time' | 'reps';
 export type LearnKind = 'mini_lesson' | 'longform';
 export type SubscriptionStatus = 'active' | 'expired' | 'pending';
 
+/** Roles are additive: an admin can do anything a member can, plus the back office. */
+export type UserRole = 'member' | 'admin';
+export type UserStatus = 'active' | 'invited' | 'suspended';
+
 export interface User {
   id: UUID;
   full_name: string;
   email: string;
   phone: string;
   avatar_url: string | null;
-  active_program_id: UUID;
+  /** The program this person is on. Null for staff, who do not train here. */
+  active_program_id: UUID | null;
+  role: UserRole;
+  status: UserStatus;
   member_since: ISODate;
+  created_at: ISODate;
+}
+
+/**
+ * An exercise a coach has prescribed to one client on top of their program.
+ * It points at the shared exercise catalogue so the instructions, purpose and
+ * video come along, and carries only what is specific to this person: what
+ * they are being asked to do, and why the coach added it.
+ */
+export interface AssignedExercise {
+  id: UUID;
+  user_id: UUID;
+  exercise_id: UUID;
+  /** The staff member who prescribed it — shown to the client and audited. */
+  assigned_by: UUID;
+  prescription: string;
+  note: string | null;
+  sort_order: number;
+  is_active: boolean;
   created_at: ISODate;
 }
 
@@ -155,8 +181,12 @@ export interface LearnContent {
   kind: LearnKind;
   title: string;
   subtitle: string;
+  /** The full blurb, shown on the lesson screen rather than in the rail. */
+  description: string;
   thumbnail_url: string | null;
   video_url: string | null;
+  /** Runtime of the video. Null until the footage is attached. */
+  duration_sec: number | null;
   sort_order: number;
 }
 

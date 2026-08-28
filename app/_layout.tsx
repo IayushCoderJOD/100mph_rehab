@@ -14,6 +14,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '@/auth/AuthProvider';
 import { CheckInProvider } from '@/checkin/CheckInProvider';
+import { DirectoryProvider } from '@/directory/DirectoryProvider';
 import { MembershipProvider } from '@/membership/MembershipProvider';
 import { ProgramProvider } from '@/program/ProgramProvider';
 import { ScheduleProvider } from '@/schedule/ScheduleProvider';
@@ -37,6 +38,8 @@ function RootNavigator() {
         <Stack.Screen name="session" options={{ presentation: 'modal' }} />
         <Stack.Screen name="check-in" options={{ presentation: 'modal' }} />
         <Stack.Screen name="exercise/[id]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="learn/[id]" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="admin" />
       </Stack>
     </View>
   );
@@ -61,15 +64,17 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>
-            <ProgramProvider>
-              <ScheduleProvider>
-                <MembershipProvider>
-                  <CheckInProvider>
-                    <RootNavigator />
-                  </CheckInProvider>
-                </MembershipProvider>
-              </ScheduleProvider>
-            </ProgramProvider>
+            <DirectoryProvider>
+              <ProgramProvider>
+                <ScheduleProvider>
+                  <MembershipProvider>
+                    <CheckInProvider>
+                      <RootNavigator />
+                    </CheckInProvider>
+                  </MembershipProvider>
+                </ScheduleProvider>
+              </ProgramProvider>
+            </DirectoryProvider>
           </AuthProvider>
         </ThemeProvider>
       </SafeAreaProvider>

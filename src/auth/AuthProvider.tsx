@@ -1,71 +1,134 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-
-const STORAGE_KEY = 'app.auth.phone';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Entitlement, authApi, messageFor, setSessionExpiredHandler, tokenStore } from '@/api';
+import { User, deviceTimezone } from '@/data';
 
 type AuthContextValue = {
   isAuthenticated: boolean;
-  identifier: string | null;
-  pendingPhone: string | null;
-  requestOtp: (phone: string) => void;
-  verifyOtp: (code: string) => Promise<boolean>;
+  /** The signed-in user record, or null. Role lives here; check it via useAccess. */
+  user: User | null;
+  /**
+   * What the server says this account may do. Computed server-side and the
+   * only thing worth branching on for access — never derive it on the device.
+   */
+  entitlement: Entitlement | null;
   signInWithPassword: (email: string, password: string) => Promise<boolean>;
+  /** The reason the last sign-in failed, already mapped to user-facing copy. */
+  error: string | null;
   signOut: () => void;
+  /** Re-reads GET /me. Call after something changes the account server-side. */
+  refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 /**
- * Static auth for V1. `verifyOtp` accepts any input; real verification
- * (Supabase Auth / SMS provider) slots in behind these same methods later.
+ * Real auth against the 100mph API.
+ *
+ * Tokens live in the device keychain and are refreshed transparently by the API
+ * client, so nothing above this provider has to know they exist. What this owns
+ * is the session: who is signed in, what they are entitled to, and ending it
+ * when the server says the session is gone.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [identifier, setIdentifier] = useState<string | null>(null);
-  const [pendingPhone, setPendingPhone] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      if (stored) setIdentifier(stored);
-      setHydrated(true);
-    });
+  const clearSession = useCallback(() => {
+    setUser(null);
+    setEntitlement(null);
   }, []);
 
-  const persist = (value: string) => {
-    setIdentifier(value);
-    setPendingPhone(null);
-    AsyncStorage.setItem(STORAGE_KEY, value);
-  };
+  const loadSession = useCallback(async () => {
+    const me = await authApi.me();
+    setUser(me.user);
+    setEntitlement(me.entitlement);
+  }, []);
 
-  const requestOtp = (next: string) => setPendingPhone(next);
+  // A refresh token that the server has revoked cannot be recovered from, so
+  // the client tells us rather than leaving the UI in a signed-in-but-broken
+  // state. Registered once, for the lifetime of the app.
+  useEffect(() => {
+    setSessionExpiredHandler(clearSession);
+    return () => setSessionExpiredHandler(null);
+  }, [clearSession]);
 
-  const verifyOtp = async (_code: string) => {
-    persist(pendingPhone ?? '');
-    return true;
-  };
+  // Cold start: if there is a stored token, find out whether it is still good.
+  useEffect(() => {
+    let cancelled = false;
 
-  const signInWithPassword = async (email: string, _password: string) => {
-    persist(email);
-    return true;
-  };
+    (async () => {
+      try {
+        const stored = await tokenStore.read();
+        if (!stored) return;
+        await loadSession();
+      } catch {
+        // Expired, revoked, or the server is down. Either way we start signed
+        // out; the tokens are already cleared by the client if they were bad.
+        if (!cancelled) clearSession();
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    })();
 
-  const signOut = () => {
-    setIdentifier(null);
-    setPendingPhone(null);
-    AsyncStorage.removeItem(STORAGE_KEY);
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, [loadSession, clearSession]);
+
+  const signInWithPassword = useCallback(
+    async (email: string, password: string) => {
+      setError(null);
+      try {
+        const signedIn = await authApi.signIn(email, password, deviceTimezone());
+        setUser(signedIn);
+
+        // The login response carries the user but not the entitlement, so pull
+        // the boot call before handing control to the app.
+        try {
+          await loadSession();
+        } catch {
+          // Signed in but the follow-up failed; the app can still render and
+          // will re-read on its next refresh.
+        }
+        return true;
+      } catch (err) {
+        setError(messageFor(err));
+        clearSession();
+        return false;
+      }
+    },
+    [loadSession, clearSession]
+  );
+
+  const signOut = useCallback(() => {
+    clearSession();
+    setError(null);
+    // Fire-and-forget: the local state is already signed out, and a failed
+    // revoke must not leave the user staring at the app they just left.
+    void authApi.signOut();
+  }, [clearSession]);
+
+  const refresh = useCallback(async () => {
+    try {
+      await loadSession();
+    } catch {
+      clearSession();
+    }
+  }, [loadSession, clearSession]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      isAuthenticated: !!identifier,
-      identifier,
-      pendingPhone,
-      requestOtp,
-      verifyOtp,
+      isAuthenticated: !!user,
+      user,
+      entitlement,
       signInWithPassword,
+      error,
       signOut,
+      refresh,
     }),
-    [identifier, pendingPhone]
+    [user, entitlement, signInWithPassword, error, signOut, refresh]
   );
 
   if (!hydrated) return null;

@@ -50,18 +50,20 @@ function SpecRow({ label, value, last }: { label: string; value: string; last?: 
 export default function ExerciseGuideScreen() {
   const dismiss = useDismiss();
   const { theme } = useTheme();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, date } = useLocalSearchParams<{ id: string; date?: string }>();
   const { exercises, sessionExercises } = useProgramData();
-  const { today } = useSchedule();
+  const { today, dayFor } = useSchedule();
 
   const exercise = findExercise(exercises, id ?? null);
 
-  // Prefer what today's session asks for; fall back to wherever else the
-  // exercise is prescribed, so the guide is readable outside a session too.
-  const todayTypeId = today?.session_type?.id ?? null;
+  // Prefer what the session being viewed asks for — that is the day passed in,
+  // or today when the guide is opened on its own — then fall back to wherever
+  // else the exercise is prescribed, so the guide is readable outside a session.
+  const viewedDay = date ? dayFor(date) : null;
+  const sessionTypeId = (date ? viewedDay : today)?.session_type?.id ?? null;
   const links = sessionExercises.filter((link) => link.exercise_id === id);
   const prescription =
-    links.find((link) => link.session_type_id === todayTypeId)?.prescription ??
+    links.find((link) => link.session_type_id === sessionTypeId)?.prescription ??
     links[0]?.prescription ??
     null;
 
@@ -80,7 +82,7 @@ export default function ExerciseGuideScreen() {
         </View>
       ) : (
         <>
-          <VideoPoster videoUrl={exercise.video_url} />
+          <VideoPoster videoUrl={exercise.video_url} posterUrl={exercise.thumbnail_url} />
 
           <Text variant="display" style={styles.name}>
             {exercise.name}

@@ -3,6 +3,7 @@ import {
   DayOfWeek,
   Exercise,
   ISODate,
+  LearnContent,
   ScheduleMap,
   SessionExercise,
   SessionStatus,
@@ -118,4 +119,18 @@ export function buildSessionPlan(
       if (exercise) plan.push({ exercise, prescription: link.prescription });
       return plan;
     }, []);
+}
+
+/** Learn content split by kind, each in the order it was authored. */
+export function groupLearnContent(content: LearnContent[]) {
+  const sorted = [...content].sort((a, b) => a.sort_order - b.sort_order);
+
+  return {
+    miniLessons: sorted.filter((item) => item.kind === 'mini_lesson'),
+    longform: sorted.filter((item) => item.kind === 'longform'),
+  };
+}
+
+export function findLearnContent(content: LearnContent[], id: string | null): LearnContent | null {
+  return id ? (content.find((item) => item.id === id) ?? null) : null;
 }

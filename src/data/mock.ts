@@ -1,4 +1,5 @@
 import {
+  AssignedExercise,
   Exercise,
   ISODate,
   LearnContent,
@@ -101,15 +102,94 @@ export const subscription: Subscription = {
   expires_at: '2027-08-14T00:00:00Z',
 };
 
-export const user: User = {
-  id: USER_ID,
-  full_name: 'Ayush Tyagi',
-  email: 'ayushtyagi4810poco@gmail.com',
-  phone: '+91 90000 00000',
-  avatar_url: null,
-  active_program_id: PROGRAM_ID,
-  member_since: '2026-08-14',
-  created_at: '2026-08-14T09:00:00Z',
+const ADMIN_ID = 'user_admin';
+
+/**
+ * The people in the system. In V1 this is the whole user table: one physio who
+ * runs the practice and the clients they have onboarded. Admin-created users
+ * are appended to this list at runtime by the directory.
+ */
+export const users: User[] = [
+  {
+    id: ADMIN_ID,
+    full_name: 'Dr. Ayush Nair',
+    email: 'admin@100mph.in',
+    phone: '+91 90000 11111',
+    avatar_url: null,
+    active_program_id: null,
+    role: 'admin',
+    status: 'active',
+    member_since: '2026-01-05',
+    created_at: '2026-01-05T09:00:00Z',
+  },
+  {
+    id: USER_ID,
+    full_name: 'Ayush Tyagi',
+    email: 'memb1@100mph.in',
+    phone: '+91 90000 00000',
+    avatar_url: null,
+    active_program_id: PROGRAM_ID,
+    role: 'member',
+    status: 'active',
+    member_since: '2026-08-14',
+    created_at: '2026-08-14T09:00:00Z',
+  },
+  {
+    id: 'user_2',
+    full_name: 'Rhea Menon',
+    email: 'memb2@100mph.in',
+    phone: '+91 90000 22222',
+    avatar_url: null,
+    active_program_id: PROGRAM_ID,
+    role: 'member',
+    status: 'active',
+    member_since: '2026-06-02',
+    created_at: '2026-06-02T09:00:00Z',
+  },
+  {
+    id: 'user_3',
+    full_name: 'Kabir Shah',
+    email: 'memb3@100mph.in',
+    phone: '+91 90000 33333',
+    avatar_url: null,
+    active_program_id: 'prog_knee',
+    role: 'member',
+    status: 'active',
+    member_since: '2026-07-19',
+    created_at: '2026-07-19T09:00:00Z',
+  },
+  {
+    id: 'user_4',
+    full_name: 'Meera Iyer',
+    email: 'memb4@100mph.in',
+    phone: '+91 90000 44444',
+    avatar_url: null,
+    active_program_id: 'prog_shoulder',
+    role: 'member',
+    status: 'invited',
+    member_since: '2026-08-18',
+    created_at: '2026-08-18T09:00:00Z',
+  },
+];
+
+/** The account the app falls back to when nothing else identifies the user. */
+export const user: User = users.find((u) => u.id === USER_ID) ?? users[0];
+
+export const admin: User = users.find((u) => u.id === ADMIN_ID) ?? users[0];
+
+/**
+ * Mock credentials, keyed by user id.
+ *
+ * DO NOT carry this pattern past V1: real passwords are salted and hashed on
+ * the server and never leave it. This exists so the admin-created-user flow is
+ * demonstrable end to end without a backend.
+ */
+export const credentials: Record<string, string> = {
+  [ADMIN_ID]: 'admin@123',
+  [USER_ID]: 'memb@123',
+  user_2: 'memb@123',
+  user_3: 'memb@123',
+  user_4: 'memb@123',
 };
 
 export const sessionTypes: SessionType[] = [
@@ -141,8 +221,8 @@ export const exercises: Exercise[] = [
     program_id: PROGRAM_ID,
     name: 'Back Extension',
     focus: 'Spinal erectors',
-    video_url: null,
-    thumbnail_url: null,
+    video_url: 'demos/back-extension-test-19c3fd12-720p.mp4',
+    thumbnail_url: 'demos/back-extension-test-b3761101.webp',
     prerequisites: 'None',
     instructions:
       'Set up face down with your hips on the pad and your feet locked in. Start with your torso hanging down, then lift until your body forms one straight line from head to heel. Hold there without arching past neutral, and lower slowly.',
@@ -376,10 +456,124 @@ export const userProgression: UserProgression = {
 };
 
 export const learnContent: LearnContent[] = [
-  { id: 'lc_1', program_id: PROGRAM_ID, kind: 'mini_lesson', title: 'Lesson 1', subtitle: 'Tissue Tolerance', thumbnail_url: null, video_url: null, sort_order: 1 },
-  { id: 'lc_2', program_id: PROGRAM_ID, kind: 'mini_lesson', title: 'Lesson 2', subtitle: 'Your Mentality', thumbnail_url: null, video_url: null, sort_order: 2 },
-  { id: 'lc_3', program_id: PROGRAM_ID, kind: 'longform', title: 'Will This Work for My Injury?', subtitle: 'Understand the real problem before the real solution.', thumbnail_url: null, video_url: null, sort_order: 3 },
-  { id: 'lc_4', program_id: PROGRAM_ID, kind: 'longform', title: 'Tissue Tolerance, In Depth', subtitle: 'Committing to understanding tolerance.', thumbnail_url: null, video_url: null, sort_order: 4 },
+  {
+    id: 'lc_tolerance',
+    program_id: PROGRAM_ID,
+    kind: 'mini_lesson',
+    title: 'Tissue Tolerance',
+    subtitle: 'Why backs give out on ordinary days',
+    description:
+      'Your back did not fail because of the thing you were lifting. It failed because the amount your tissue could take had quietly dropped below what an ordinary day asks of it. Raise the ceiling and ordinary days stop being a risk.',
+    thumbnail_url: null,
+    video_url: null,
+    duration_sec: 20,
+    sort_order: 1,
+  },
+  {
+    id: 'lc_mentality',
+    program_id: PROGRAM_ID,
+    kind: 'mini_lesson',
+    title: 'Your Mentality',
+    subtitle: 'This is a long game',
+    description:
+      'The people who get their backs back are not the ones who train hardest. They are the ones still training in month four. Consistency beats intensity every time here.',
+    thumbnail_url: null,
+    video_url: null,
+    duration_sec: 18,
+    sort_order: 2,
+  },
+  {
+    id: 'lc_hurt_harm',
+    program_id: PROGRAM_ID,
+    kind: 'mini_lesson',
+    title: 'Hurt Is Not Harm',
+    subtitle: 'Pain does not always mean damage',
+    description:
+      'Pain is your nervous system asking for attention, not a readout of tissue damage. Learning to tell the difference is what lets you keep loading a back that still complains.',
+    thumbnail_url: null,
+    video_url: null,
+    duration_sec: 17,
+    sort_order: 3,
+  },
+  {
+    id: 'lc_rest_trap',
+    program_id: PROGRAM_ID,
+    kind: 'mini_lesson',
+    title: 'The Rest Trap',
+    subtitle: 'Why lying still makes it worse',
+    description:
+      'Rest feels like the safe choice and it works for about two days. After that it lowers your tolerance further, which is why the next flare-up arrives sooner and hits harder.',
+    thumbnail_url: null,
+    video_url: null,
+    duration_sec: 19,
+    sort_order: 4,
+  },
+  {
+    id: 'lc_hinge',
+    program_id: PROGRAM_ID,
+    kind: 'mini_lesson',
+    title: 'The Hinge',
+    subtitle: 'One pattern that protects your spine',
+    description:
+      'Every heavy thing you pick up for the rest of your life should start at the hips, not the lower back. Twenty seconds on the pattern that makes that automatic.',
+    thumbnail_url: null,
+    video_url: null,
+    duration_sec: 20,
+    sort_order: 5,
+  },
+
+  {
+    id: 'lc_normal_again',
+    program_id: PROGRAM_ID,
+    kind: 'longform',
+    title: 'Will I Ever Get My Back To Normal?',
+    subtitle: 'The honest answer, and what normal actually means',
+    description:
+      'The question everyone asks first, answered without the hedging. We go through what recovery actually looks like, why "normal" is the wrong target, and what the realistic ceiling is for a back that has been painful for months or years. Most people aim at the wrong thing and conclude they have failed when they have not.',
+    thumbnail_url: null,
+    video_url: null,
+    duration_sec: 12 * 60 + 40,
+    sort_order: 1,
+  },
+  {
+    id: 'lc_my_injury',
+    program_id: PROGRAM_ID,
+    kind: 'longform',
+    title: 'Will This Work For My Injury?',
+    subtitle: 'Understand the real problem before the real solution',
+    description:
+      'Disc bulge, sciatica, facet joint, "wear and tear" — the labels matter far less than you have been led to believe. This walks through what an MRI does and does not tell you, and why the same programme works across diagnoses that sound completely different.',
+    thumbnail_url: null,
+    video_url: null,
+    duration_sec: 9 * 60 + 15,
+    sort_order: 2,
+  },
+  {
+    id: 'lc_tolerance_depth',
+    program_id: PROGRAM_ID,
+    kind: 'longform',
+    title: 'Tissue Tolerance, In Depth',
+    subtitle: 'The science behind loading a back that hurts',
+    description:
+      'The full version of the mini lesson. What tolerance is physiologically, how load builds it, why the dose has to climb, and how to read the difference between soreness that is progress and pain that means back off.',
+    thumbnail_url: null,
+    video_url: null,
+    duration_sec: 15 * 60,
+    sort_order: 3,
+  },
+  {
+    id: 'lc_desk_hours',
+    program_id: PROGRAM_ID,
+    kind: 'longform',
+    title: 'Sitting, Driving And Desk Work',
+    subtitle: 'Managing the hours that undo your session',
+    description:
+      'You train for an hour and sit for nine. This covers what long sitting actually does to the hips and lower back, which fixes are worth the effort, and which ergonomic advice is expensive noise.',
+    thumbnail_url: null,
+    video_url: null,
+    duration_sec: 11 * 60 + 30,
+    sort_order: 4,
+  },
 ];
 
 /** A week of check-ins so the trend has something to draw before the user adds theirs. */
@@ -395,7 +589,101 @@ export const progress: Progress[] = [
 
 export const todayProgress: Progress = progress[progress.length - 1];
 
+
 /** Dates the user has already finished a session on — the seed for the log. */
 export const completedDates: ISODate[] = sessions
   .filter((s) => s.status === 'completed')
   .map((s) => s.scheduled_date);
+
+const clientProgress = (
+  userId: string,
+  scores: [ISODate, number, string][]
+): Progress[] =>
+  scores.map(([date, pain_score, pain_location]) => ({
+    id: `pr_${userId}_${date}`,
+    user_id: userId,
+    date,
+    checked_in: true,
+    pain_score,
+    pain_location,
+    deposits_made: 1,
+    workouts_completed: 0,
+  }));
+
+/**
+ * Check-in history per client. The admin roster and client detail read from
+ * here; the signed-in member's own log is owned by CheckInProvider.
+ */
+export const progressByUser: Record<string, Progress[]> = {
+  [USER_ID]: progress,
+  user_2: clientProgress('user_2', [
+    ['2026-08-14', 5, 'Lower back, both sides'],
+    ['2026-08-15', 5, 'Lower back'],
+    ['2026-08-16', 4, 'Eased after the session'],
+    ['2026-08-17', 4, 'Stiff first thing'],
+    ['2026-08-18', 3, 'Lower back'],
+    ['2026-08-19', 3, 'Barely noticeable'],
+    ['2026-08-20', 2, 'Only after sitting'],
+  ]),
+  user_3: clientProgress('user_3', [
+    ['2026-08-12', 6, 'Right knee, front'],
+    ['2026-08-14', 7, 'Right knee after stairs'],
+    ['2026-08-16', 6, 'Right knee'],
+    ['2026-08-17', 6, 'Aching through the day'],
+  ]),
+  user_4: [],
+};
+
+/** Dates each client has completed a session on, for the adherence column. */
+export const completedByUser: Record<string, ISODate[]> = {
+  [USER_ID]: completedDates,
+  user_2: ['2026-08-14', '2026-08-16', '2026-08-17', '2026-08-19', '2026-08-20'],
+  user_3: ['2026-08-12', '2026-08-16'],
+  user_4: [],
+};
+
+/**
+ * Exercises prescribed to one client on top of their program. Seeded so the
+ * "For You" tab and the admin assignment screen both have something to show.
+ */
+export const assignedExercises: AssignedExercise[] = [
+  {
+    id: 'ae_1',
+    user_id: USER_ID,
+    exercise_id: 'ex_couch_stretch',
+    assigned_by: ADMIN_ID,
+    prescription: '2 x 90s holds · Both sides · Every evening',
+    note: 'Your left hip is the tighter one — give that side the longer hold. Do this before bed, not before training.',
+    sort_order: 1,
+    is_active: true,
+    created_at: '2026-08-17T10:00:00Z',
+  },
+  {
+    id: 'ae_2',
+    user_id: USER_ID,
+    exercise_id: 'ex_dead_bug',
+    assigned_by: ADMIN_ID,
+    prescription: '2 x 8 reps · Slow tempo',
+    note: 'Added because your back was lifting off the floor on the last set we did together. Stop the set the moment that happens.',
+    sort_order: 2,
+    is_active: true,
+    created_at: '2026-08-17T10:02:00Z',
+  },
+  {
+    id: 'ae_3',
+    user_id: 'user_2',
+    exercise_id: 'ex_hamstring_floss',
+    assigned_by: ADMIN_ID,
+    prescription: '2 x 12 reps · Both sides · Morning',
+    note: 'For the sciatic tightness you mentioned. Keep it moving, do not hold the stretch.',
+    sort_order: 1,
+    is_active: true,
+    created_at: '2026-08-15T08:30:00Z',
+  },
+];
+
+
+export const demoLogins: { label: string; email: string; password: string; role: string }[] = [
+  { label: 'Dr. Priya Nair', email: 'admin@100mph.in', password: 'admin@123', role: 'Admin' },
+  { label: 'Ayush Tyagi', email: 'memb1@100mph.in', password: 'memb@123', role: 'Member' },
+];

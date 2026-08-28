@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Linking, StyleSheet, View } from 'react-native';
+import { ROLE_LABEL, useAccess } from '@/access';
 import { useAuth } from '@/auth/AuthProvider';
 import { SettingsRow, SettingsSection } from '@/components/settings';
 import { Button, Card, HeartBadge, Screen, SegmentedControl, Text } from '@/components/ui';
 import { socialLinks, supportEmail } from '@/config/brand';
-import { formatLongDate, mock } from '@/data';
+import { formatLongDate } from '@/data';
 import { useMembership } from '@/membership/MembershipProvider';
-import { useProgram } from '@/program/ProgramProvider';
 import { useProgramData } from '@/program/programData';
 import { ThemeMode, useTheme } from '@/theme';
 
@@ -18,15 +18,14 @@ const THEME_SEGMENTS: { label: string; value: ThemeMode }[] = [
 
 export default function SettingsScreen() {
   const { theme, mode, setMode } = useTheme();
-  const { signOut } = useAuth();
-  const { clearProgram } = useProgram();
+  const { signOut, user } = useAuth();
+  const { can, isAdmin, role } = useAccess();
   const { program } = useProgramData();
   const { plan, isActive } = useMembership();
   const router = useRouter();
 
   const handleLogout = () => {
     signOut();
-    clearProgram();
     router.replace('/(auth)/login');
   };
 
@@ -46,42 +45,65 @@ export default function SettingsScreen() {
         <View style={styles.userRow}>
           <HeartBadge size={56} glow />
           <View style={styles.userText}>
-            <Text variant="heading">{mock.user.full_name}</Text>
+            <Text variant="heading">{user?.full_name ?? 'Your account'}</Text>
             <Text variant="caption" color="textSecondary">
-              Member since {formatLongDate(mock.user.member_since)}
+              Member since {user ? formatLongDate(user.member_since) : '—'}
             </Text>
           </View>
         </View>
       </Card>
 
-      <SettingsSection label="Your Membership">
-        <SettingsRow
-          icon="person-outline"
-          title="My Account"
-          subtitle="Email, phone and member details"
-          onPress={() => router.push('/account')}
-        />
-        <SettingsRow
-          icon="card-outline"
-          title="Manage Membership"
-          subtitle={isActive ? 'Change duration or cancel' : 'Cancelled — resume any time'}
-          value={plan.name}
-          onPress={() => router.push('/membership')}
-        />
-        <SettingsRow
-          icon="calendar-outline"
-          title="Edit Schedule"
-          subtitle="Choose which days you train"
-          onPress={() => router.push('/edit-schedule')}
-        />
-        <SettingsRow
-          icon="body-outline"
-          title="Your Program"
-          subtitle="Switch to another program"
-          value={program.name}
-          onPress={() => router.push('/programs')}
-        />
-      </SettingsSection>
+      {isAdmin ? (
+        <SettingsSection
+          label="Practice"
+          footnote={`Signed in as ${role ? ROLE_LABEL[role] : 'admin'}.`}
+        >
+          <SettingsRow
+            icon="people-outline"
+            title="Clients"
+            subtitle="Progress, check-ins and prescriptions"
+            onPress={() => router.push('/(tabs)/clients')}
+          />
+          {can('clients.create') ? (
+            <SettingsRow
+              icon="person-add-outline"
+              title="Create Client Account"
+              subtitle="Provision access for a new member"
+              onPress={() => router.push('/admin/create-user')}
+            />
+          ) : null}
+        </SettingsSection>
+      ) : null}
+
+      {can('program.train') ? (
+        <SettingsSection label="Your Membership">
+          <SettingsRow
+            icon="person-outline"
+            title="My Account"
+            subtitle="Email, phone and member details"
+            onPress={() => router.push('/account')}
+          />
+          <SettingsRow
+            icon="card-outline"
+            title="Manage Membership"
+            subtitle={isActive ? 'Change duration or cancel' : 'Cancelled — resume any time'}
+            value={plan.name}
+            onPress={() => router.push('/membership')}
+          />
+          <SettingsRow
+            icon="calendar-outline"
+            title="Edit Schedule"
+            subtitle="Choose which days you train"
+            onPress={() => router.push('/edit-schedule')}
+          />
+          <SettingsRow
+            icon="body-outline"
+            title="Your Program"
+            subtitle="Assigned by your coach"
+            value={program.name}
+          />
+        </SettingsSection>
+      ) : null}
 
       <SettingsSection label="Appearance">
         <View style={styles.appearance}>
@@ -102,9 +124,7 @@ export default function SettingsScreen() {
           subtitle={supportEmail}
           external
           onPress={() =>
-            openUrl(
-              `mailto:${supportEmail}?subject=${encodeURIComponent('100mph app support')}`
-            )
+            openUrl(`mailto:${supportEmail}?subject=${encodeURIComponent('100mph app support')}`)
           }
         />
       </SettingsSection>

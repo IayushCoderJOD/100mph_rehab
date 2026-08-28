@@ -2,8 +2,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
 import { ISODate, Progress, mock, todayISO } from '@/data';
+import { useAuth } from '@/auth/AuthProvider';
 
-const STORAGE_KEY = 'app.checkins';
+/** Keyed per user: signing out and back in as someone else must not leak a log. */
+const storageKey = (userId: string) => `app.checkins.${userId}`;
 
 export type CheckInInput = {
   pain_score: number;
@@ -31,17 +33,43 @@ const byDate = (a: Progress, b: Progress) => (a.date < b.date ? -1 : a.date > b.
  * first run; everything the user adds is stored locally for V1.
  */
 export function CheckInProvider({ children }: { children: React.ReactNode }) {
-  const [checkIns, setCheckIns] = useState<Progress[]>(() => [...mock.progress].sort(byDate));
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+
+  const [checkIns, setCheckIns] = useState<Progress[]>([]);
   const [todayIso, setTodayIso] = useState<ISODate>(todayISO);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
+    let cancelled = false;
+
+    if (!userId) {
+      setCheckIns([]);
+      setHydrated(true);
+      return;
+    }
+
+    setHydrated(false);
+    AsyncStorage.getItem(storageKey(userId))
       .then((stored) => {
-        if (stored) setCheckIns((JSON.parse(stored) as Progress[]).sort(byDate));
+        if (cancelled) return;
+        setCheckIns(
+          ((stored ? JSON.parse(stored) : (mock.progressByUser[userId] ?? [])) as Progress[]).sort(
+            byDate
+          )
+        );
       })
-      .finally(() => setHydrated(true));
-  }, []);
+      .catch(() => {
+        if (!cancelled) setCheckIns([]);
+      })
+      .finally(() => {
+        if (!cancelled) setHydrated(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
@@ -52,6 +80,8 @@ export function CheckInProvider({ children }: { children: React.ReactNode }) {
 
   const saveCheckIn = useCallback(
     ({ pain_score, pain_location }: CheckInInput) => {
+      if (!userId) return;
+
       setCheckIns((prev) => {
         const existing = prev.find((entry) => entry.date === todayIso);
         const location = pain_location.trim() || null;
@@ -62,7 +92,7 @@ export function CheckInProvider({ children }: { children: React.ReactNode }) {
           ? { ...existing, checked_in: true, pain_score, pain_location: location }
           : {
               id: `pr_${todayIso}`,
-              user_id: mock.user.id,
+              user_id: userId,
               date: todayIso,
               checked_in: true,
               pain_score,
@@ -72,11 +102,11 @@ export function CheckInProvider({ children }: { children: React.ReactNode }) {
             };
 
         const next = [...prev.filter((e) => e.date !== todayIso), entry].sort(byDate);
-        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        AsyncStorage.setItem(storageKey(userId), JSON.stringify(next));
         return next;
       });
     },
-    [todayIso]
+    [todayIso, userId]
   );
 
   const value = useMemo<CheckInContextValue>(() => {

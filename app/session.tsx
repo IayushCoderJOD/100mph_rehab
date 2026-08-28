@@ -1,10 +1,10 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { IconButton } from '@/components/common';
 import { ExerciseRow } from '@/components/session';
 import { Button, Screen, SegmentedControl, Text } from '@/components/ui';
-import { buildSessionPlan } from '@/data';
+import { DAY_LABEL, buildSessionPlan, formatShortDate } from '@/data';
 import { useDismiss } from '@/navigation/useDismiss';
 import { useProgramData } from '@/program/programData';
 import { useSchedule } from '@/schedule/ScheduleProvider';
@@ -17,9 +17,19 @@ export default function SessionScreen() {
   const dismiss = useDismiss();
   const { theme } = useTheme();
   const { exercises, sessionExercises } = useProgramData();
-  const { today, completeSession } = useSchedule();
+  const { today, todayIso, dayFor, completeSession } = useSchedule();
+  const { date } = useLocalSearchParams<{ date?: string }>();
 
-  const sessionType = today?.session_type ?? null;
+  // No date param means today, so the home screen's primary action is unchanged.
+  const targetIso = date ?? todayIso;
+  const day = dayFor(targetIso) ?? (targetIso === todayIso ? today : null);
+
+  // Only today can be logged. Any other day is a read-through of the plan:
+  // you can see the work and open every guide, but nothing is recordable.
+  const readOnly = targetIso !== todayIso;
+  const isFuture = targetIso > todayIso;
+  const sessionType = day?.session_type ?? null;
+
   const plan = useMemo(
     () => buildSessionPlan(sessionType?.id ?? null, exercises, sessionExercises),
     [sessionType, exercises, sessionExercises]
@@ -37,16 +47,31 @@ export default function SessionScreen() {
   const toggle = (id: string) =>
     setDoneIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
+  const dayLabel = day
+    ? `${DAY_LABEL[day.day_of_week]} · ${formatShortDate(targetIso)}`
+    : formatShortDate(targetIso);
+
+  // Carry the date into the guide so the prescription shown is the one this
+  // day asks for, not whatever today happens to prescribe.
+  const openGuide = (exerciseId: string) =>
+    router.push(readOnly ? `/exercise/${exerciseId}?date=${targetIso}` : `/exercise/${exerciseId}`);
+
   if (!sessionType || plan.length === 0) {
     return (
       <Screen>
         <View style={styles.header}>
-          <View style={styles.headerText} />
+          <View style={styles.headerText}>
+            {readOnly ? (
+              <Text variant="label" color="textSecondary" style={styles.kicker}>
+                {dayLabel}
+              </Text>
+            ) : null}
+          </View>
           <IconButton name="close" variant="plain" onPress={dismiss} />
         </View>
         <View style={styles.empty}>
           <Text variant="title" align="center">
-            Nothing scheduled today
+            {readOnly ? 'Rest day' : 'Nothing scheduled today'}
           </Text>
           <Text variant="subtitle" color="textSecondary" align="center" style={styles.emptyNote}>
             Rest is part of the plan. Your next session is waiting on the schedule.
@@ -59,12 +84,21 @@ export default function SessionScreen() {
   const completedCount = doneIds.length;
   const progress = completedCount / plan.length;
 
+  const kicker = readOnly ? dayLabel : running ? 'Session in progress' : "Today's Session";
+
+  const statusNote =
+    day?.status === 'completed'
+      ? 'You completed this session.'
+      : isFuture
+        ? 'This is the plan for that day. You can log it when it comes around.'
+        : 'That day has passed. Sessions can only be logged on the day itself.';
+
   return (
     <Screen>
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text variant="label" color="textSecondary" style={styles.kicker}>
-            {running ? 'Session in progress' : "Today's Session"}
+            {kicker}
           </Text>
           <Text variant="title">{sessionType.name}</Text>
         </View>
@@ -105,13 +139,17 @@ export default function SessionScreen() {
             prescription={prescription}
             done={doneIds.includes(exercise.id)}
             onToggle={running ? () => toggle(exercise.id) : undefined}
-            onGuide={() => router.push(`/exercise/${exercise.id}`)}
+            onGuide={() => openGuide(exercise.id)}
           />
         ))}
       </ScrollView>
 
       <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
-        {running ? (
+        {readOnly ? (
+          <Text variant="caption" color="textMuted" align="center" style={styles.modeNote}>
+            {statusNote}
+          </Text>
+        ) : running ? (
           <Button
             label={completedCount === plan.length ? 'Finish Session' : 'Finish Early'}
             variant={completedCount === plan.length ? 'primary' : 'secondary'}

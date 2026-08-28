@@ -81,6 +81,22 @@ export function todayISO(): ISODate {
   return toISODate(new Date());
 }
 
+/**
+ * The device's IANA zone, sent to the server on sign-in and on every token
+ * refresh so its local-day maths matches what the member sees on their screen.
+ *
+ * Falls back to Asia/Kolkata to match the server's own default rather than
+ * inventing a third answer — a device with no zone is a bug to survive, not a
+ * reason to disagree with the backend.
+ */
+export function deviceTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata';
+  } catch {
+    return 'Asia/Kolkata';
+  }
+}
+
 /** '2026-08-14' → '14 August 2026', in the device's locale. */
 export function formatLongDate(iso: ISODate): string {
   return parseISODate(iso).toLocaleDateString(undefined, {
