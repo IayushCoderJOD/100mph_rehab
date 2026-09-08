@@ -9,7 +9,7 @@ import Constants from 'expo-constants';
  * which is the same machine the API runs on. Set EXPO_PUBLIC_API_BASE_URL to
  * override, and always set it for a release build.
  */
-const DEV_PORT = Number(process.env.EXPO_PUBLIC_API_PORT ?? 8080);
+const DEV_PORT = Number(process.env.EXPO_PUBLIC_API_PORT ?? 8090);
 
 function inferDevHost(): string | null {
   // e.g. "192.168.1.14:8081" — the host Metro is being served from.
