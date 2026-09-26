@@ -67,9 +67,10 @@ at runtime changes them, and they are small. So they ship as a JSON file loaded
 into memory at boot — `backend/src/main/resources/content/catalogue.json` —
 and are served read-only.
 
-That file is generated from this app's own `src/data/mock.ts`, so the catalogue
-the API serves and the one the app was built against are the same content by
-construction rather than by discipline.
+That file is generated from this app's own `src/data/mock.ts` by
+`node scripts/export-catalogue.mjs`, so the catalogue the API serves and the one
+the app was built against are the same content by construction rather than by
+discipline. Run it after any content change and commit both sides together.
 
 Changing content is therefore a deploy, not a database write. That is the trade,
 and it is the right one for a catalogue a physio edits occasionally. It would be
@@ -78,6 +79,7 @@ the wrong one for anything a user can change — so all of that is in MongoDB:
 | Static (JSON, in memory) | Dynamic (MongoDB) |
 |---|---|
 | Programs | Users, credentials, sessions |
+| Routines (day templates) | Each member's training week |
 | Exercises + instructions | Weekly schedules |
 | Session types + running order | Session logs |
 | Signature exercises, progression ladders | Where each member is on a ladder |
@@ -142,8 +144,8 @@ anywhere else.
 | Method | Path | Notes |
 |---|---|---|
 | `GET` | `/me` | The boot call — user, entitlement, flags |
-| `PATCH` | `/me` | `{ full_name?, timezone?, avatar_url? }` |
-| `PUT` | `/me/program` | `{ program_id }` — also seeds the default week |
+| `PATCH` | `/me` | `{ full_name?, timezone?, avatar_url?, date_of_birth?, height_cm?, weight_kg? }` |
+| `PUT` | `/me/program` | `{ program_id }` — the optional focus area for Learn content |
 
 ### 4.3 Content — the static catalogue
 
@@ -152,21 +154,26 @@ anywhere else.
 | `GET` | `/programs` | **Public.** Backs the program picker |
 | `GET` | `/programs/{id}/content` | Everything for one program, in one request |
 | `GET` | `/exercises/{id}` | One exercise, for the guide screen |
+| `GET` | `/routines` | Named sets of exercises a coach drops onto a day as a starting point |
+| `GET` | `/routines/{id}` | One routine |
 | `GET` | `/learn/{id}` | One lesson |
 
 `/programs/{id}/content` returns session types, exercises, the session running
 order, signature exercises, progression levels, Learn content and topics, and
 the program's default week — so entering a program is one round trip, not six.
 
-### 4.4 Schedule
+### 4.4 The week
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` | `/schedule` | The member's week; seeded from the program default on first read |
-| `PUT` | `/schedule` | `{ days: { monday: "st_flow", … } }` — replaces the whole week |
+| `GET` | `/plan` | The member's training week, as their physio wrote it |
 
-The whole week is sent at once because a partial plan is ambiguous: a missing
-day could mean rest or untouched. Sending all seven makes it neither.
+The week is per member, written by the physio (see §4.8), and is what a
+member trains on: each day carries the exercises to be done with a
+prescription for each, and an empty day is rest. Every day is always present in
+the response, Monday first, so the app never fills gaps. A member who has no
+week yet reads seven empty days, not an error — a fresh account is the normal
+state. The program is only a focus area for Learn content now, and optional.
 
 ### 4.5 Sessions
 
@@ -204,7 +211,7 @@ default, not an empty state.
 
 | Method | Path | Notes |
 |---|---|---|
-| `POST` | `/admin/users` | Provision an account. This is how members get in |
+| `POST` | `/admin/users` | Provision an account. This is how members get in. `program_id` optional |
 | `GET` | `/admin/users` | Raw user list |
 | `PATCH` | `/admin/users/{id}/status` | `active` / `invited` / `suspended` |
 | `GET` | `/admin/clients` | The roster, with adherence and attention flags |
@@ -212,6 +219,8 @@ default, not an empty state.
 | `GET` | `/admin/clients/{id}/assigned-exercises` | Their prescriptions |
 | `POST` | `/admin/clients/{id}/assigned-exercises` | Prescribe an exercise |
 | `DELETE` | `/admin/clients/{id}/assigned-exercises/{aid}` | Withdraw one |
+| `GET` | `/admin/clients/{id}/plan` | The client's week |
+| `PUT` | `/admin/clients/{id}/plan` | `{ days: { monday: [{ exercise_id, prescription }, …], … } }` — replaces the whole week; days left out are rest |
 | `PUT` | `/admin/clients/{id}/progression` | Coach override of a ladder |
 
 The whole `/admin` tree is gated on the path, so a handler added there cannot be
@@ -344,8 +353,12 @@ and its unique index exist for when a phone-first flow does.
 correctly; delivery logs it instead of mailing it. Wire the mailer where
 `AuthController` logs, and never put the token in the HTTP response.
 
-**Media.** `video_url` and `thumbnail_url` are carried through the catalogue but
-nothing is hosted yet. Do not roll your own HLS transcoding.
+**Media.** Hosted: demonstration footage is encoded once by
+`scripts/encode-demos.sh` into content-addressed MP4/WebP files, uploaded to a
+zero-egress bucket behind Cloudflare, and referenced from the catalogue by key.
+The app resolves keys against `EXPO_PUBLIC_MEDIA_BASE_URL`. Do not roll your
+own HLS transcoding — the files are small enough that adaptive bitrate would be
+solving a problem they do not have.
 
 **Per-IP rate limiting.** Per-account throttling is in. Per-IP limits belong in
 Redis or at the edge, not in the app's own datastore.

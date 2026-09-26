@@ -12,8 +12,8 @@ export {
   authApi,
   checkInApi,
   contentApi,
+  planApi,
   progressionApi,
-  scheduleApi,
   sessionApi,
 } from './auth';
 export type {
@@ -30,7 +30,10 @@ export type {
   MeResponse,
   ProgramContent,
   ProgressionResponse,
-  ScheduleResponse,
+  RoutineResponse,
   SessionLogResponse,
   SessionPlanResponse,
+  UpdateMePayload,
+  UpdatePlanPayload,
+  WeeklyPlanResponse,
 } from './types';

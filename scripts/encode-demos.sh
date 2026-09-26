@@ -51,6 +51,11 @@ slugify() {
 
 # Encode one rendition, name it by the hash of its own bytes, echo the key.
 #
+# Audio is dropped (-an): demos are silent by design — they are filmed on
+# phones in busy gyms and the app never plays sound. Stripping it here rather
+# than trusting the source means a clip with a chatty soundtrack can never
+# reach a member.
+#
 # The hash is taken after encoding rather than from the source because it is the
 # delivered file that gets cached forever — two different sources that encode to
 # identical output should, correctly, be one object.
@@ -63,7 +68,7 @@ encode() {
     -c:v libx264 -profile:v high -level 4.0 -crf "$bitrate" -preset slow \
     -maxrate "$maxrate" -bufsize "$bufsize" \
     -pix_fmt yuv420p \
-    -c:a aac -b:a 96k -ac 2 \
+    -an \
     -movflags +faststart \
     "$tmp"
 

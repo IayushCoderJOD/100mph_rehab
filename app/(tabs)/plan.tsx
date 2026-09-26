@@ -1,42 +1,22 @@
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { assignmentApi } from '@/api';
 import { useAuth } from '@/auth/AuthProvider';
 import { AssignedExerciseCard } from '@/components/plan';
-import { Card, HeartBadge, Screen, Text } from '@/components/ui';
-import { findExercise } from '@/data';
-import { useDirectory } from '@/directory/DirectoryProvider';
-import { useProgramData } from '@/program/programData';
+import { Button, Card, HeartBadge, Screen, Text } from '@/components/ui';
+import { useRemote } from '@/hooks/useRemote';
 
 /**
- * What the client's physio has prescribed for them specifically, on top of the
- * program everyone on it shares. Empty until a coach adds something, which is
- * the normal state for a new member rather than an error.
+ * What the client's physio has prescribed for them specifically, on top of
+ * the week. Read from the server on every visit — a prescription written in
+ * the clinic an hour ago has to be here now.
  */
 export default function PlanScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { assignmentsFor, userById } = useDirectory();
-  const { exercises } = useProgramData();
+  const { data, loading, error, reload } = useRemote(() => assignmentApi.mine(), [user?.id], !!user);
 
-  const items = useMemo(() => {
-    if (!user) return [];
-
-    return assignmentsFor(user.id).flatMap((assignment) => {
-      const exercise = findExercise(exercises, assignment.exercise_id);
-      // An assignment pointing at an exercise outside this program is stale
-      // rather than broken — skip it instead of rendering a blank card.
-      if (!exercise) return [];
-
-      return [
-        {
-          assignment,
-          exercise,
-          assignedByName: userById(assignment.assigned_by)?.full_name ?? 'Your physio',
-        },
-      ];
-    });
-  }, [user, assignmentsFor, exercises, userById]);
+  const items = (data ?? []).filter((row) => row.exercise !== null);
 
   return (
     <Screen scroll>
@@ -44,7 +24,23 @@ export default function PlanScreen() {
         For You
       </Text>
 
-      {items.length === 0 ? (
+      {error ? (
+        <Card style={styles.empty}>
+          <Text variant="heading" align="center">
+            Could not load your prescriptions
+          </Text>
+          <Text variant="caption" color="textSecondary" align="center" style={styles.emptyNote}>
+            {error}
+          </Text>
+          <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.retry} />
+        </Card>
+      ) : loading ? (
+        <Card style={styles.empty}>
+          <Text variant="caption" color="textSecondary" align="center">
+            Loading…
+          </Text>
+        </Card>
+      ) : items.length === 0 ? (
         <Card style={styles.empty}>
           <HeartBadge size={72} />
           <Text variant="heading" align="center" style={styles.emptyTitle}>
@@ -52,23 +48,23 @@ export default function PlanScreen() {
           </Text>
           <Text variant="subtitle" color="textSecondary" align="center" style={styles.emptyNote}>
             When your physio prescribes something specific to you, it shows up here alongside your
-            program.
+            week.
           </Text>
         </Card>
       ) : (
         <>
           <Text variant="subtitle" color="textSecondary" style={styles.intro}>
-            Prescribed for you specifically. Do these alongside your program, not instead of it.
+            Prescribed for you specifically.
           </Text>
 
           <View style={styles.list}>
-            {items.map(({ assignment, exercise, assignedByName }) => (
+            {items.map((row) => (
               <AssignedExerciseCard
-                key={assignment.id}
-                assignment={assignment}
-                exercise={exercise}
-                assignedByName={assignedByName}
-                onGuide={() => router.push(`/exercise/${exercise.id}`)}
+                key={row.id}
+                assignment={row}
+                exercise={row.exercise!}
+                assignedByName={row.assigned_by_name || 'Your physio'}
+                onGuide={() => router.push(`/exercise/${row.exercise!.id}`)}
               />
             ))}
           </View>
@@ -85,4 +81,5 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingVertical: 40 },
   emptyTitle: { marginTop: 20 },
   emptyNote: { marginTop: 6, paddingHorizontal: 8 },
+  retry: { marginTop: 16 },
 });

@@ -1,8 +1,9 @@
 /**
  * Outward-facing details for 100mph — the things that live outside the app.
  *
- * TODO: the social handles below are placeholders. Replace them with the real
- * accounts before shipping; every social row in Settings reads from here.
+ * Instagram is the confirmed account. TODO: the other handles below are still
+ * placeholders — replace each with the real account, then list its id in
+ * `features.socialLinks` so Settings shows it.
  */
 
 export type SocialLink = {
@@ -20,8 +21,8 @@ export const socialLinks: SocialLink[] = [
   {
     id: 'instagram',
     label: 'Instagram',
-    handle: '@100mph',
-    url: 'https://instagram.com/100mph',
+    handle: '@100mph_',
+    url: 'https://www.instagram.com/100mph_',
     icon: 'logo-instagram',
   },
   {

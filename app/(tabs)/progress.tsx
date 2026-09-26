@@ -12,7 +12,8 @@ import { useTheme } from '@/theme';
 export default function ProgressScreen() {
   const router = useRouter();
   const { theme } = useTheme();
-  const { checkIns, recent, averageScore, hasCheckedInToday } = useCheckIns();
+  const { checkIns, summary, recent, averageScore, hasCheckedInToday, loading, error, reload } =
+    useCheckIns();
 
   const [selected, setSelected] = useState<number | null>(null);
 
@@ -31,6 +32,40 @@ export default function ProgressScreen() {
 
   const delta = weekAvg !== null && previousAvg !== null ? weekAvg - previousAvg : null;
   const selectedEntry = selected !== null ? history[selected] : null;
+
+  if (error && checkIns.length === 0) {
+    return (
+      <Screen scroll>
+        <Text variant="title" align="center" style={styles.pageTitle}>
+          Progress
+        </Text>
+        <Card style={styles.empty}>
+          <Text variant="heading" align="center">
+            Could not load your progress
+          </Text>
+          <Text variant="subtitle" color="textSecondary" align="center" style={styles.emptyNote}>
+            {error}
+          </Text>
+          <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.emptyAction} />
+        </Card>
+      </Screen>
+    );
+  }
+
+  if (loading && checkIns.length === 0) {
+    return (
+      <Screen scroll>
+        <Text variant="title" align="center" style={styles.pageTitle}>
+          Progress
+        </Text>
+        <Card style={styles.empty}>
+          <Text variant="caption" color="textSecondary" align="center">
+            Loading…
+          </Text>
+        </Card>
+      </Screen>
+    );
+  }
 
   if (checkIns.length === 0) {
     return (
@@ -97,7 +132,18 @@ export default function ProgressScreen() {
           stats={[
             { value: latest?.pain_score != null ? `${latest.pain_score}` : '—', label: 'Latest' },
             { value: weekAvg !== null ? weekAvg.toFixed(1) : '—', label: '7-day avg' },
-            { value: `${checkIns.length}`, label: 'Check-ins' },
+            { value: `${summary?.total_check_ins ?? checkIns.length}`, label: 'Check-ins' },
+          ]}
+        />
+        <SessionStats
+          style={styles.statsRow}
+          stats={[
+            { value: `${summary?.current_streak ?? 0}`, label: 'Day streak' },
+            { value: `${summary?.total_sessions ?? 0}`, label: 'Sessions' },
+            {
+              value: summary?.adherence != null ? `${Math.round(summary.adherence * 100)}%` : '—',
+              label: 'On plan · 4 wks',
+            },
           ]}
         />
         {delta !== null ? (
@@ -169,6 +215,7 @@ const styles = StyleSheet.create({
   readout: { borderTopWidth: 1, marginTop: 8, paddingTop: 14 },
   readoutNote: { marginTop: 2 },
   statsCard: { marginTop: 16, paddingVertical: 22 },
+  statsRow: { marginTop: 22 },
   delta: { marginTop: 16 },
   action: { marginTop: 16 },
   sectionTitle: { marginTop: 32, marginBottom: 12 },

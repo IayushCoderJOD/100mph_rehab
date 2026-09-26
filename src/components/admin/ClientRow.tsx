@@ -1,43 +1,62 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { ClientStats } from '@/admin';
-import { User } from '@/data';
+import { ClientSummary } from '@/api';
+import { ISODate, parseISODate, todayISO } from '@/data';
+import { useHover } from '@/hooks/useHover';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 import { StatusBadge } from './StatusBadge';
 
 type ClientRowProps = {
-  client: User;
-  stats: ClientStats;
-  programName: string;
+  summary: ClientSummary;
   onPress?: () => void;
 };
+
+export function daysSince(iso: ISODate | null, today: ISODate = todayISO()): number | null {
+  if (!iso) return null;
+  const ms = parseISODate(today).getTime() - parseISODate(iso).getTime();
+  return Math.max(0, Math.round(ms / 86_400_000));
+}
 
 /**
  * One client on the roster. Leads with the two numbers a coach actually scans
  * for — how much pain, and how long since they showed up — because a list that
  * only shows names makes you open every row to find the one that matters.
+ * Every number here is the server's, so two coaches see the same list.
  */
-export function ClientRow({ client, stats, programName, onPress }: ClientRowProps) {
+export function ClientRow({ summary, onPress }: ClientRowProps) {
   const { theme } = useTheme();
+  const { hovered, hoverProps } = useHover();
+  const { user: client } = summary;
 
+  const quietDays = daysSince(summary.last_active_date);
   const silence =
-    stats.daysSinceCheckIn === null
-      ? 'No check-ins yet'
-      : stats.daysSinceCheckIn === 0
+    quietDays === null
+      ? 'No activity yet'
+      : summary.checked_in_today
         ? 'Checked in today'
-        : `${stats.daysSinceCheckIn}d since check-in`;
+        : quietDays === 0
+          ? 'Active today'
+          : `${quietDays}d since last activity`;
+
+  const line = summary.has_plan
+    ? `${summary.sessions_this_week} session${summary.sessions_this_week === 1 ? '' : 's'} this week` +
+      (summary.adherence != null ? ` · ${Math.round(summary.adherence * 100)}% on plan` : '')
+    : 'No week written yet';
 
   return (
     <Pressable
+      {...hoverProps}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${client.full_name}, ${programName}, ${silence}`}
+      accessibilityLabel={`${client.full_name}, ${line}, ${silence}`}
       style={({ pressed }) => [
         styles.row,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: stats.needsAttention ? theme.colors.accentBorder : theme.colors.border,
+          // The roster is the screen a coach drives with a mouse most, so the
+          // row under the pointer needs to be unambiguous.
+          backgroundColor: hovered ? theme.colors.surfaceRaised : theme.colors.surface,
+          borderColor: summary.needs_attention ? theme.colors.accentBorder : theme.colors.border,
           borderRadius: theme.radius.md,
           opacity: pressed ? 0.85 : 1,
         },
@@ -53,7 +72,7 @@ export function ClientRow({ client, stats, programName, onPress }: ClientRowProp
           },
         ]}
       >
-        <Text variant="bodyStrong">{stats.latestPain ?? '—'}</Text>
+        <Text variant="bodyStrong">{summary.latest_pain_score ?? '—'}</Text>
         <Text variant="label" color="textMuted">
           PAIN
         </Text>
@@ -66,13 +85,12 @@ export function ClientRow({ client, stats, programName, onPress }: ClientRowProp
           </Text>
           <StatusBadge status={client.status} />
         </View>
-        <Text variant="caption" color="textSecondary" numberOfLines={1}>
-          {programName} · {stats.sessionsLast7} session{stats.sessionsLast7 === 1 ? '' : 's'} this
-          week
+        <Text variant="caption" color={summary.has_plan ? 'textSecondary' : 'accentText'} numberOfLines={1}>
+          {line}
         </Text>
         <Text
           variant="caption"
-          color={stats.needsAttention ? 'accentText' : 'textMuted'}
+          color={summary.needs_attention ? 'accentText' : 'textMuted'}
           numberOfLines={1}
         >
           {silence}

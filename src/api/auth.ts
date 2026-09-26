@@ -15,9 +15,12 @@ import {
   MeResponse,
   ProgramContent,
   ProgressionResponse,
-  ScheduleResponse,
+  RoutineResponse,
   SessionLogResponse,
   SessionPlanResponse,
+  UpdateMePayload,
+  UpdatePlanPayload,
+  WeeklyPlanResponse,
 } from './types';
 
 export const authApi = {
@@ -37,8 +40,7 @@ export const authApi = {
 
   me: () => api.get<MeResponse>(endpoints.me.root),
 
-  updateMe: (patch: { full_name?: string; timezone?: string; avatar_url?: string | null }) =>
-    api.patch<MeResponse>(endpoints.me.root, patch),
+  updateMe: (patch: UpdateMePayload) => api.patch<MeResponse>(endpoints.me.root, patch),
 
   setProgram: (programId: string) =>
     api.put<MeResponse>(endpoints.me.program, { program_id: programId }),
@@ -60,6 +62,21 @@ export const authApi = {
     await tokenStore.clear();
   },
 
+  /**
+   * Replaces the member's own password. The server ends every other session
+   * and hands this device a fresh pair, which is stored so it stays signed in.
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const body = await api.put<AuthResponse>(endpoints.me.password, {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    await tokenStore.save({
+      accessToken: body.access_token,
+      refreshToken: body.refresh_token,
+    });
+  },
+
   requestPasswordReset: (email: string) =>
     api.post<void>(endpoints.auth.forgotPassword, { email: email.trim() }, true),
 
@@ -73,13 +90,12 @@ export const contentApi = {
     api.get<ProgramContent>(endpoints.content.programContent(programId)),
   exercise: (exerciseId: string) => api.get(endpoints.content.exercise(exerciseId)),
   learn: (contentId: string) => api.get(endpoints.content.learn(contentId)),
+  routines: () => api.get<RoutineResponse[]>(endpoints.content.routines),
 };
 
-export const scheduleApi = {
-  get: () => api.get<ScheduleResponse>(endpoints.schedule.root),
-  /** Replaces the whole week — a partial plan is ambiguous about rest days. */
-  replace: (days: Record<string, string | null>) =>
-    api.put<ScheduleResponse>(endpoints.schedule.root, { days }),
+export const planApi = {
+  /** The signed-in member's week. Read-only from this side — the physio writes it. */
+  mine: () => api.get<WeeklyPlanResponse>(endpoints.plan.root),
 };
 
 export const sessionApi = {
@@ -136,6 +152,10 @@ export const adminApi = {
   setUserStatus: (userId: string, status: UserStatus) =>
     api.patch<User>(endpoints.admin.userStatus(userId), { status }),
 
+  /** A new temporary password for a client who is locked out. Signs them out everywhere. */
+  setUserPassword: (userId: string, password: string) =>
+    api.put<void>(endpoints.admin.userPassword(userId), { password }),
+
   /** The roster with adherence and attention flags, computed server-side. */
   roster: () => api.get<ClientSummary[]>(endpoints.admin.clients),
 
@@ -148,6 +168,12 @@ export const adminApi = {
 
   withdrawAssignment: (userId: string, assignmentId: string) =>
     api.delete<void>(endpoints.admin.clientAssignment(userId, assignmentId)),
+
+  clientPlan: (userId: string) => api.get<WeeklyPlanResponse>(endpoints.admin.clientPlan(userId)),
+
+  /** Replaces the whole week — a partial plan is ambiguous about rest days. */
+  replacePlan: (userId: string, payload: UpdatePlanPayload) =>
+    api.put<WeeklyPlanResponse>(endpoints.admin.clientPlan(userId), payload),
 
   setProgression: (userId: string, signatureExerciseId: string, progressionLevelId: string) =>
     api.put<ProgressionResponse>(endpoints.admin.clientProgression(userId), {

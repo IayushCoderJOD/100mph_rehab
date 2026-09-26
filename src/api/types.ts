@@ -7,11 +7,13 @@ import {
   LearnTopic,
   Program,
   ProgressionLevel,
+  Routine,
   SessionExercise,
   SessionType,
   SignatureExercise,
   User,
   UserStatus,
+  WeeklyPlan,
 } from '@/data';
 
 /** POST /auth/password and /auth/refresh both return this. */
@@ -50,14 +52,18 @@ export type ProgramContent = {
   default_schedule: { program_id: string; day_of_week: DayOfWeek; session_type_id: string }[];
 };
 
-/** The week: day → session type id, or null for rest. */
-export type ScheduleResponse = {
-  program_id: string;
-  days: Record<DayOfWeek, string | null>;
+/** GET /plan and /admin/clients/:id/plan — every day present, rest days empty. */
+export type WeeklyPlanResponse = WeeklyPlan;
+
+/** PUT /admin/clients/:id/plan. Days left out are rest; order in the list is the order. */
+export type UpdatePlanPayload = {
+  days: Partial<Record<DayOfWeek, { exercise_id: string; prescription: string }[]>>;
 };
 
+export type RoutineResponse = Routine;
+
 export type SessionPlanResponse = {
-  session_type: SessionType | null;
+  local_date: ISODate;
   exercises: { exercise: Exercise; prescription: string }[];
   completed: boolean;
 };
@@ -130,16 +136,23 @@ export type ClientSummary = {
   user: User;
   adherence: number | null;
   latest_pain_score: number | null;
+  average_pain_score: number | null;
   last_active_date: ISODate | null;
   current_streak: number;
+  total_check_ins: number;
+  checked_in_today: boolean;
+  /** Sessions logged in the last seven days, today included. */
+  sessions_this_week: number;
   active_assignments: number;
+  /** False until the coach has written this client's week. */
+  has_plan: boolean;
   /** Computed by the server, so every client agrees who needs a call. */
   needs_attention: boolean;
 };
 
 export type ClientDetail = {
   user: User;
-  schedule: ScheduleResponse | null;
+  plan: WeeklyPlanResponse | null;
   recent_sessions: SessionLogResponse[];
   recent_check_ins: CheckInResponse[];
   summary: CheckInSummary;
@@ -152,8 +165,20 @@ export type CreateUserPayload = {
   email: string;
   phone?: string;
   password: string;
-  program_id: string;
+  /** Optional focus area. The week the coach writes is what the member trains on. */
+  program_id?: string;
   role: 'member' | 'admin';
+};
+
+export type UpdateMePayload = {
+  full_name?: string;
+  /** Empty string clears it. */
+  phone?: string;
+  timezone?: string;
+  avatar_url?: string | null;
+  date_of_birth?: ISODate;
+  height_cm?: number;
+  weight_kg?: number;
 };
 
 export type SetStatusPayload = { status: UserStatus };

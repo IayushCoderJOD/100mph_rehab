@@ -1,13 +1,10 @@
 import {
-  AssignedExercise,
   Exercise,
-  ISODate,
   LearnContent,
   LearnTopic,
   Plan,
   Program,
-  Progress,
-  Session,
+  Routine,
   SessionExercise,
   SessionType,
   SignatureExercise,
@@ -117,6 +114,9 @@ export const users: User[] = [
     phone: '+91 90000 11111',
     avatar_url: null,
     active_program_id: null,
+    date_of_birth: null,
+    height_cm: null,
+    weight_kg: null,
     role: 'admin',
     status: 'active',
     member_since: '2026-01-05',
@@ -129,6 +129,9 @@ export const users: User[] = [
     phone: '+91 90000 00000',
     avatar_url: null,
     active_program_id: PROGRAM_ID,
+    date_of_birth: '1995-03-14',
+    height_cm: 176,
+    weight_kg: 72,
     role: 'member',
     status: 'active',
     member_since: '2026-08-14',
@@ -141,6 +144,9 @@ export const users: User[] = [
     phone: '+91 90000 22222',
     avatar_url: null,
     active_program_id: PROGRAM_ID,
+    date_of_birth: null,
+    height_cm: null,
+    weight_kg: null,
     role: 'member',
     status: 'active',
     member_since: '2026-06-02',
@@ -153,6 +159,9 @@ export const users: User[] = [
     phone: '+91 90000 33333',
     avatar_url: null,
     active_program_id: 'prog_knee',
+    date_of_birth: '1998-11-03',
+    height_cm: 181,
+    weight_kg: 76,
     role: 'member',
     status: 'active',
     member_since: '2026-07-19',
@@ -165,6 +174,9 @@ export const users: User[] = [
     phone: '+91 90000 44444',
     avatar_url: null,
     active_program_id: 'prog_shoulder',
+    date_of_birth: '1990-06-21',
+    height_cm: 163,
+    weight_kg: 58,
     role: 'member',
     status: 'invited',
     member_since: '2026-08-18',
@@ -176,21 +188,6 @@ export const users: User[] = [
 export const user: User = users.find((u) => u.id === USER_ID) ?? users[0];
 
 export const admin: User = users.find((u) => u.id === ADMIN_ID) ?? users[0];
-
-/**
- * Mock credentials, keyed by user id.
- *
- * DO NOT carry this pattern past V1: real passwords are salted and hashed on
- * the server and never leave it. This exists so the admin-created-user flow is
- * demonstrable end to end without a backend.
- */
-export const credentials: Record<string, string> = {
-  [ADMIN_ID]: 'admin@123',
-  [USER_ID]: 'memb@123',
-  user_2: 'memb@123',
-  user_3: 'memb@123',
-  user_4: 'memb@123',
-};
 
 export const sessionTypes: SessionType[] = [
   {
@@ -215,24 +212,17 @@ export const sessionTypes: SessionType[] = [
   },
 ];
 
-export const exercises: Exercise[] = [
-  {
-    id: 'ex_back_extension',
-    program_id: PROGRAM_ID,
-    name: 'Back Extension',
-    focus: 'Spinal erectors',
-    video_url: 'demos/back-extension-test-19c3fd12-720p.mp4',
-    thumbnail_url: 'demos/back-extension-test-b3761101.webp',
-    prerequisites: 'None',
-    instructions:
-      'Set up face down with your hips on the pad and your feet locked in. Start with your torso hanging down, then lift until your body forms one straight line from head to heel. Hold there without arching past neutral, and lower slowly.',
-    purpose:
-      'This is the central exercise of the program. It loads the muscles that hold your spine upright through their full range, which is what raises the tolerance of the tissue that has been letting you down.',
-  },
+/**
+ * Every movement written up so far, filmed or not. The ones still waiting on
+ * footage keep their guide text here so nothing has to be rewritten when the
+ * clip arrives — they just stay out of the catalogue until it does.
+ */
+const authoredExercises: Exercise[] = [
   {
     id: 'ex_hip_hinge',
     program_id: PROGRAM_ID,
     name: 'Hip Hinge',
+    category: 'back',
     focus: 'Hamstrings and glutes',
     video_url: null,
     thumbnail_url: null,
@@ -246,6 +236,7 @@ export const exercises: Exercise[] = [
     id: 'ex_bird_dog',
     program_id: PROGRAM_ID,
     name: 'Bird Dog',
+    category: 'core',
     focus: 'Trunk control',
     video_url: null,
     thumbnail_url: null,
@@ -259,6 +250,7 @@ export const exercises: Exercise[] = [
     id: 'ex_dead_bug',
     program_id: PROGRAM_ID,
     name: 'Dead Bug',
+    category: 'core',
     focus: 'Deep core',
     video_url: null,
     thumbnail_url: null,
@@ -272,19 +264,21 @@ export const exercises: Exercise[] = [
     id: 'ex_split_squat',
     program_id: PROGRAM_ID,
     name: 'Split Squat',
+    category: 'lower_body',
     focus: 'Single leg strength',
-    video_url: null,
-    thumbnail_url: null,
-    prerequisites: 'Comfortable with the hip hinge',
+    video_url: 'demos/split-squats-dumbell-308b18f8-720p.mp4',
+    thumbnail_url: 'demos/split-squats-dumbell-ace3316e.webp',
+    prerequisites: 'Pain-free bodyweight squat',
     instructions:
-      'Take a long stride, keep your torso tall and drop your back knee straight down towards the floor. Push through the front foot to stand. Keep the weight even rather than shifting onto the front leg.',
+      'Hold a dumbbell in each hand with your arms long by your sides. Take a long stride into a split stance, back heel up. Keep your torso tall and lower the back knee straight down until it almost touches the floor, then push through the whole front foot to stand. Finish every rep on one side before switching.',
     purpose:
-      'Most back pain comes with one leg quietly doing less work. Loading each side on its own finds that gap and closes it.',
+      'Each leg has to carry the load on its own, so a weaker side cannot hide behind the stronger one. It builds the single-leg strength that stairs, running and getting up off the floor depend on, and it is the base the walking lunge builds on.',
   },
   {
     id: 'ex_suitcase_carry',
     program_id: PROGRAM_ID,
     name: 'Suitcase Carry',
+    category: 'core',
     focus: 'Anti-side-bend',
     video_url: null,
     thumbnail_url: null,
@@ -298,6 +292,7 @@ export const exercises: Exercise[] = [
     id: 'ex_reverse_hyper',
     program_id: PROGRAM_ID,
     name: 'Reverse Hyper',
+    category: 'back',
     focus: 'Posterior chain',
     video_url: null,
     thumbnail_url: null,
@@ -311,6 +306,7 @@ export const exercises: Exercise[] = [
     id: 'ex_couch_stretch',
     program_id: PROGRAM_ID,
     name: 'Couch Stretch',
+    category: 'mobility',
     focus: 'Hip flexors and quads',
     video_url: null,
     thumbnail_url: null,
@@ -324,6 +320,7 @@ export const exercises: Exercise[] = [
     id: 'ex_hip_switch',
     program_id: PROGRAM_ID,
     name: '90/90 Hip Switch',
+    category: 'mobility',
     focus: 'Hip rotation',
     video_url: null,
     thumbnail_url: null,
@@ -337,6 +334,7 @@ export const exercises: Exercise[] = [
     id: 'ex_cat_cow',
     program_id: PROGRAM_ID,
     name: 'Cat Cow',
+    category: 'mobility',
     focus: 'Segmental spine',
     video_url: null,
     thumbnail_url: null,
@@ -350,6 +348,7 @@ export const exercises: Exercise[] = [
     id: 'ex_deep_squat',
     program_id: PROGRAM_ID,
     name: 'Deep Squat Hold',
+    category: 'mobility',
     focus: 'Hips, ankles, adductors',
     video_url: null,
     thumbnail_url: null,
@@ -363,6 +362,7 @@ export const exercises: Exercise[] = [
     id: 'ex_thoracic_opener',
     program_id: PROGRAM_ID,
     name: 'Thoracic Opener',
+    category: 'mobility',
     focus: 'Upper back rotation',
     video_url: null,
     thumbnail_url: null,
@@ -376,6 +376,7 @@ export const exercises: Exercise[] = [
     id: 'ex_hamstring_floss',
     program_id: PROGRAM_ID,
     name: 'Hamstring Floss',
+    category: 'mobility',
     focus: 'Hamstrings and sciatic glide',
     video_url: null,
     thumbnail_url: null,
@@ -385,11 +386,510 @@ export const exercises: Exercise[] = [
     purpose:
       'Gentle movement rather than a held stretch, which is what irritated nerve tissue responds to best. Useful on the days sitting has made everything feel tight.',
   },
+  {
+    id: 'ex_505_cod',
+    program_id: 'prog_fitness',
+    name: '5-0-5 Change of Direction Drill',
+    category: 'athletic',
+    focus: 'Deceleration and re-acceleration',
+    video_url: 'demos/5-0-5-change-of-direction-drill-95f26219-720p.mp4',
+    thumbnail_url: 'demos/5-0-5-change-of-direction-drill-95ad5d88.webp',
+    prerequisites: 'Pain-free running and a comfortable split squat',
+    instructions:
+      'Set two cones five metres apart. Sprint the five metres to the far cone, plant and turn 180 degrees, then sprint ten metres back past the start. Lower your hips as you reach the turn so the braking comes from your legs, not a locked knee. Rest two minutes between reps so every turn is sharp, and alternate the side you turn off.',
+    purpose:
+      'Most knee and hamstring injuries in field sport happen while braking and turning, not while running in a straight line. Practising the turn at full effort, with full rest, teaches the legs to take that load well before a match asks them to.',
+  },
+  {
+    id: 'ex_bent_knee_calf_raise',
+    program_id: 'prog_knee',
+    name: 'Bent Knee Calf Raise',
+    category: 'ankle_calf',
+    focus: 'Soleus',
+    video_url: 'demos/bent-knee-calf-raises-044a9ae0-720p.mp4',
+    thumbnail_url: 'demos/bent-knee-calf-raises-7e17ccc6.webp',
+    prerequisites: 'None',
+    instructions:
+      'Stand in the calf raise machine with the pads on your shoulders and the balls of your feet on the edge of the platform. Bend your knees slightly and keep that bend for the whole set. Rise onto your toes as high as you can, pause at the top, then lower slowly until your heels drop below the platform. No machine? Do the same on a step, holding a rail.',
+    purpose:
+      'Keeping the knees bent shifts the work away from the big calf muscle and onto the soleus underneath it, the muscle that takes most of the load in every running stride. It is often the missing piece in a stubborn Achilles or calf problem.',
+  },
+  {
+    id: 'ex_db_front_lateral_raise',
+    program_id: 'prog_shoulder',
+    name: 'Dumbbell Front & Lateral Raises',
+    category: 'upper_body',
+    focus: 'Deltoids',
+    video_url: 'demos/dumbbell-front-lateral-raises-1d04a47d-720p.mp4',
+    thumbnail_url: 'demos/dumbbell-front-lateral-raises-6da18a7e.webp',
+    prerequisites: 'Pain-free arm raise overhead',
+    instructions:
+      'Stand tall with a light dumbbell in each hand by your sides. Raise both arms out to the sides to shoulder height and lower slowly. Then raise them straight in front of you and keep going until they are overhead, and lower slowly. That is one rep. Keep your elbows soft and your shoulders down: no shrugging, no leaning back.',
+    purpose:
+      'Works the shoulder through the two directions you reach in most, all the way up to overhead. Rebuilding strength through that whole range is what makes reaching for a high shelf, or overhead in sport, stop feeling risky.',
+  },
+  {
+    id: 'ex_loaded_hip_flexion',
+    program_id: PROGRAM_ID,
+    name: 'Loaded Hip Flexion',
+    category: 'hips_glutes',
+    focus: 'Hip flexors',
+    video_url: 'demos/loaded-hip-flexion-416e4e05-720p.mp4',
+    thumbnail_url: 'demos/loaded-hip-flexion-b56c96ae.webp',
+    prerequisites: 'Can stand on one leg for 30 seconds',
+    instructions:
+      'Stand tall on one leg with your hands on your hips and a small weight on the other foot; an ankle weight is the easiest way. Lift the knee up in front of you as high as you can control, pause, and lower slowly. Keep your chest up and do not lean back to help. Hold something for balance if you need to, and finish the set before switching sides.',
+    purpose:
+      'The hip flexors are blamed for being tight far more often than they are trained for being weak. When they cannot lift the leg on their own, the lower back arches to help. Strengthening them takes that job away from your spine.',
+  },
+  {
+    id: 'ex_nordic_curl',
+    program_id: 'prog_knee',
+    name: 'Nordic Hamstring Curl',
+    category: 'lower_body',
+    focus: 'Eccentric hamstrings',
+    video_url: 'demos/nordic-hamstring-curls-a2ddcc13-720p.mp4',
+    thumbnail_url: 'demos/nordic-hamstring-curls-9b3116b9.webp',
+    prerequisites: 'Comfortable with the prone hamstring curl',
+    instructions:
+      'Kneel on a mat with a partner holding your ankles down firmly, or hook them under something solid. Keeping your hips and shoulders in one straight line, lower your body forward as slowly as you can, using your hamstrings to brake. Catch yourself with your hands at the bottom and push back up to the start.',
+    purpose:
+      'Lowering under load is exactly what the hamstring does at the end of a sprint stride, and this is one of the best-evidenced exercises there is for preventing hamstring tears. Slow is the whole point: how long you can hold off the fall is the measure of progress.',
+  },
+  {
+    id: 'ex_rolling_sprint',
+    program_id: 'prog_fitness',
+    name: 'Rolling Sprint',
+    category: 'athletic',
+    focus: 'Acceleration',
+    video_url: 'demos/rolling-sprint-e2549052-720p.mp4',
+    thumbnail_url: 'demos/rolling-sprint-331dbc28.webp',
+    prerequisites: 'Pain-free jogging',
+    instructions:
+      'Jog in for ten metres, build smoothly into a sprint over the next twenty, and ease off gradually rather than stopping dead. Stay tall and let the stride lengthen as the speed comes. Walk back and recover fully before the next one.',
+    purpose:
+      'The rolling start takes the violent first step out of sprinting, so you can reach top speed without the load spike that reinjures hamstrings. It is the bridge between running drills and being back in the game.',
+  },
+  {
+    id: 'ex_smith_squat',
+    program_id: 'prog_knee',
+    name: 'Smith Machine Squat',
+    category: 'lower_body',
+    focus: 'Quads and glutes',
+    video_url: 'demos/smith-machine-squats-22ef0cc5-720p.mp4',
+    thumbnail_url: 'demos/smith-machine-squats-3654fdbe.webp',
+    prerequisites: 'Pain-free bodyweight squat',
+    instructions:
+      'Set the bar across your upper back and walk your feet slightly forward of it, about shoulder-width apart. Unrack, sit down to parallel or as deep as is pain-free, and drive back up. The bar path is fixed, so your job is to keep your knees tracking over your toes and your chest up.',
+    purpose:
+      'A fixed bar path means balance is taken care of and every bit of effort goes into the muscles you are trying to load. That makes it the safest place to add real weight to a squat while a knee is still being rebuilt.',
+  },
+  {
+    id: 'ex_tke_seated',
+    program_id: 'prog_knee',
+    name: 'Terminal Knee Extension (Seated)',
+    category: 'lower_body',
+    focus: 'Knee lockout',
+    video_url: 'demos/terminal-knee-extension-seated-f9480413-720p.mp4',
+    thumbnail_url: 'demos/terminal-knee-extension-seated-e41edd30.webp',
+    prerequisites: 'None',
+    instructions:
+      'Sit on a bed or the floor, leaning back on your hands or a pillow, with the leg out straight and a rolled towel or firm cushion under the knee. Tighten the thigh and lift your heel until the knee is completely straight, hold for two seconds, then lower slowly until the heel rests back down. The back of the knee stays on the roll throughout. Add a light ankle weight once this is easy.',
+    purpose:
+      'The last few degrees of straightening are the first thing a swollen or operated knee loses and the last thing to come back on its own. This works exactly that range, which is what makes walking without a limp possible again.',
+  },
+  {
+    id: 'ex_walking_lunge',
+    program_id: 'prog_knee',
+    name: 'Walking Lunge',
+    category: 'lower_body',
+    focus: 'Single leg strength in motion',
+    video_url: 'demos/walking-lunges-4b28b6c2-720p.mp4',
+    thumbnail_url: 'demos/walking-lunges-590372c7.webp',
+    prerequisites: 'Comfortable with the split squat',
+    instructions:
+      'Hold a dumbbell in each hand by your sides, or start with none. Step forward into a long stride and lower until the back knee nearly touches the ground, keeping your torso upright. Push through the front foot to stand and step straight into the next lunge on the other leg.',
+    purpose:
+      'A split squat that travels. Adding the step means each leg has to catch and control the body in motion, which is the gap between being strong in the gym and being confident on stairs and uneven ground.',
+  },
+  {
+    id: 'ex_single_leg_quad_extension',
+    program_id: 'prog_knee',
+    name: 'Single Leg Quad Extension',
+    category: 'lower_body',
+    focus: 'Quadriceps',
+    video_url: 'demos/single-leg-quad-extension-9d33fc79-720p.mp4',
+    thumbnail_url: 'demos/single-leg-quad-extension-3e0bd1ad.webp',
+    prerequisites: 'Pain-free long arc quad',
+    instructions:
+      'Sit in the leg extension machine with the pad on the front of the ankle and the knee in line with the pivot. Straighten one leg fully, pause for a second at the top with the thigh squeezed, then lower slowly over three counts. Do all the reps on one side before switching.',
+    purpose:
+      'One leg at a time means the strong side cannot quietly do the work of the weak one. It is the cleanest way to load the quad through its full range, and a simple check of whether the two legs have caught up with each other.',
+  },
+  {
+    id: 'ex_weighted_bridge',
+    program_id: PROGRAM_ID,
+    name: 'Weighted Bridges',
+    category: 'hips_glutes',
+    focus: 'Glutes',
+    video_url: 'demos/weighted-bridges-5f78b0d9-720p.mp4',
+    thumbnail_url: 'demos/weighted-bridges-19ca437c.webp',
+    prerequisites: 'Comfortable with the bodyweight glute bridge',
+    instructions:
+      'Lie on your back with knees bent, feet flat and a dumbbell held across the front of your hips. Drive through the heels and lift the hips until the body is a straight line from knee to shoulder. Squeeze at the top for two seconds, then lower under control without letting the back arch.',
+    purpose:
+      'A bridge that has a weight on it is a strength exercise; one that does not is a warm-up. The glutes are the biggest muscle you have for taking load off the lower back, and they need real resistance to get stronger.',
+  },
+  {
+    id: 'ex_weighted_tibialis_raise',
+    program_id: 'prog_knee',
+    name: 'Weighted Tibialis Raises',
+    category: 'ankle_calf',
+    focus: 'Tibialis anterior',
+    video_url: 'demos/weighted-tibialis-raises-f7f494eb-720p.mp4',
+    thumbnail_url: 'demos/weighted-tibialis-raises-37e84542.webp',
+    prerequisites: 'Comfortable with the seated banded tibialis raise',
+    instructions:
+      'Sit on a box with the heels on the edge and a kettlebell hooked over each foot. Let the toes drop, then pull them up towards the shins as far as they will go and hold for a second. Lower slowly. Keep the knees still — only the ankle moves.',
+    purpose:
+      'The muscle down the front of the shin is what slows the foot down every time it lands, and it is the one nobody trains. Loading it directly is the answer to shin pain and to the knee having to absorb landings the ankle should have taken.',
+  },
+  {
+    id: 'ex_sled_push',
+    program_id: 'prog_fitness',
+    name: 'Sled Pushes',
+    category: 'athletic',
+    focus: 'Leg drive and conditioning',
+    video_url: 'demos/sled-pushes-b94fa884-720p.mp4',
+    thumbnail_url: 'demos/sled-pushes-ba8edd2e.webp',
+    prerequisites: 'Pain-free walking lunge',
+    instructions:
+      'Hold the upright handles with straight arms and lean in until your body forms one line from head to back heel. Drive with short, powerful steps, pushing the ground away behind you rather than reaching in front. Walk it back and rest fully between lengths.',
+    purpose:
+      'Every step is a full-effort push with no landing, so it builds leg power without the impact a sore knee cannot yet take. It is also honest conditioning: the sled does not move unless you do.',
+  },
+  {
+    id: 'ex_banded_hip_hinge',
+    program_id: PROGRAM_ID,
+    name: 'Banded Hip Hinge',
+    category: 'back',
+    focus: 'Hip hinge pattern',
+    video_url: 'demos/banded-hip-hinge-2b9653ba-720p.mp4',
+    thumbnail_url: 'demos/banded-hip-hinge-13baf2d4.webp',
+    prerequisites: 'None',
+    instructions:
+      'Anchor a band high, above head height, and hold it with both hands and straight arms. Push your hips back and hinge forward, letting your hands travel down past your knees as the band stretches, then drive your hips forward to stand tall again. Keep your back flat and your arms straight throughout: the bend happens at the hips, not the spine.',
+    purpose:
+      'The overhead band gives the hinge a guide. Keeping it taut with straight arms switches on the big muscles down the sides of your back, which hold the spine still while the hips do the bending. It is the pattern behind every safe lift from the floor, practised without a weight.',
+  },
+  {
+    id: 'ex_resisted_ankle_dorsiflexion',
+    program_id: 'prog_knee',
+    name: 'Resisted Ankle Dorsiflexion (Long Sitting)',
+    category: 'ankle_calf',
+    focus: 'Tibialis anterior',
+    video_url: 'demos/resisted-ankle-dorsiflexion-long-sitting-aeff33f8-720p.mp4',
+    thumbnail_url: 'demos/resisted-ankle-dorsiflexion-long-sitting-ffbffe79.webp',
+    prerequisites: 'None',
+    instructions:
+      'Sit on the floor with the legs out straight and a band looped over the top of one foot, anchored in front of you. Pull the toes back towards your shin against the band, hold for two seconds, then let them go forward slowly. Keep the heel on the floor.',
+    purpose:
+      'The first exercise back for a stiff or swollen ankle. It restores the pull-up motion that walking and stairs depend on, at a load gentle enough to do every day.',
+  },
+  {
+    id: 'ex_drop_landing',
+    program_id: 'prog_knee',
+    name: 'Drop Landing',
+    category: 'athletic',
+    focus: 'Landing mechanics',
+    video_url: 'demos/drop-landing-35d52f40-720p.mp4',
+    thumbnail_url: 'demos/drop-landing-258f4587.webp',
+    prerequisites: 'Pain-free double leg squat and hop',
+    instructions:
+      'Stand on a low box and step off rather than jumping, landing on both feet at once. Absorb the landing by bending your hips and knees into a half squat, knees in line with your toes and chest up, and make it as quiet as you can. Hold that position for two seconds, then stand and step back up.',
+    purpose:
+      'A knee gets hurt on the landing, not the jump. Practising a soft, controlled landing from a small height teaches the leg to absorb force through the muscles rather than the joint, and is the gate between gym strength and returning to sport.',
+  },
+  {
+    id: 'ex_leg_press',
+    program_id: 'prog_knee',
+    name: 'Leg Press',
+    category: 'lower_body',
+    focus: 'Quads and glutes',
+    video_url: 'demos/leg-press-c2bab084-720p.mp4',
+    thumbnail_url: 'demos/leg-press-4580052c.webp',
+    prerequisites: 'None',
+    instructions:
+      'Sit back into the machine with the feet shoulder-width on the platform and the lower back flat against the pad. Lower the platform until the knees are at about ninety degrees, then press through the whole foot to straighten the legs without locking the knees out hard.',
+    purpose:
+      'The seat takes balance and the back out of the equation, so all of the load goes into the legs. It is where a knee first gets loaded properly after an injury, and where you can add weight week on week with the least to go wrong.',
+  },
+  {
+    id: 'ex_single_leg_calf_raise',
+    program_id: 'prog_knee',
+    name: 'Single Leg Straight Knee Calf Raise',
+    category: 'ankle_calf',
+    focus: 'Gastrocnemius',
+    video_url: 'demos/single-leg-straight-knee-calf-raise-d095c0d3-720p.mp4',
+    thumbnail_url: 'demos/single-leg-straight-knee-calf-raise-f8cd513f.webp',
+    prerequisites: 'Comfortable with the bent knee calf raise',
+    instructions:
+      'Stand on one foot on the edge of a step, knee straight, with a hand on something for balance only. Rise as high as you can onto the ball of the foot, pause, then lower slowly until the heel is below the step. Keep the knee straight the whole way.',
+    purpose:
+      'The partner to the bent knee version. With the knee straight, the big calf muscle does the work, the one that pushes you off the ground in a run or a jump. Around twenty-five clean single-leg reps is a common benchmark before running is back on the table.',
+  },
+  {
+    id: 'ex_prone_hamstring_curl',
+    program_id: 'prog_knee',
+    name: 'Prone Hamstring Curl',
+    category: 'lower_body',
+    focus: 'Hamstrings',
+    video_url: 'demos/prone-hamstring-curl-324339f9-720p.mp4',
+    thumbnail_url: 'demos/prone-hamstring-curl-0f6f17e3.webp',
+    prerequisites: 'None',
+    instructions:
+      'Lie face down on the machine with the pad just above the heels and the knees off the edge of the bench. Curl the heels towards the glutes, pause at the top, and lower over three slow counts. Keep the hips pressed into the bench rather than lifting them to help.',
+    purpose:
+      'The hamstrings bend the knee as well as extend the hip, and this trains that first job in isolation. It is the safe place to rebuild hamstring strength before the Nordic curl, and the machine keeps the load exactly where it should be.',
+  },
+  {
+    id: 'ex_banded_hip_abduction',
+    program_id: 'prog_knee',
+    name: 'Standing Banded Hip Abduction',
+    category: 'hips_glutes',
+    focus: 'Glute medius',
+    video_url: 'demos/standing-banded-hip-abduction-024ca703-720p.mp4',
+    thumbnail_url: 'demos/standing-banded-hip-abduction-c87c04a8.webp',
+    prerequisites: 'None',
+    instructions:
+      'Stand tall with a loop band around the ankles and a hand on a pole for balance. Keeping the knee straight and the toes facing forward, take one leg out to the side as far as it will go without the trunk leaning, then bring it back under control. Finish the set before switching legs.',
+    purpose:
+      'The muscle on the side of the hip is what stops the knee falling inward when you stand on one leg. When it is weak, the knee takes the strain on every step, so strengthening it is knee rehab as much as hip work.',
+  },
+  {
+    id: 'ex_banded_glute_bridge',
+    program_id: PROGRAM_ID,
+    name: 'Banded Glute Bridge',
+    category: 'hips_glutes',
+    focus: 'Glutes',
+    video_url: 'demos/banded-glute-bridge-18a6af82-720p.mp4',
+    thumbnail_url: 'demos/banded-glute-bridge-d1b15a64.webp',
+    prerequisites: 'Comfortable with the bodyweight glute bridge',
+    instructions:
+      'Lie on your back with your knees bent and feet flat, and a band across the front of your hips with each end pinned to the floor under your hands. Drive the hips up against the band until your body is straight from knees to shoulders, hold for two seconds at the top, and lower slowly.',
+    purpose:
+      'A band pulls hardest at the top, which is exactly where the glutes have to work hardest and where most people give up. It is a way of loading a bridge properly when there is no weight to hand.',
+  },
+  {
+    id: 'ex_glute_bridge',
+    program_id: PROGRAM_ID,
+    name: 'Glute Bridge',
+    category: 'hips_glutes',
+    focus: 'Glutes',
+    video_url: 'demos/glute-bridge-e76ae6c3-720p.mp4',
+    thumbnail_url: 'demos/glute-bridge-32776ed7.webp',
+    prerequisites: 'None',
+    instructions:
+      'Lie on your back with the knees bent and the feet flat, about hip-width apart. Push through the heels and lift the hips until the body is a straight line from knees to shoulders. Squeeze the glutes at the top, then lower slowly. Do not push the hips so high that the back arches.',
+    purpose:
+      'The first place to learn what the glutes actually feel like when they work. It is safe on the first day of almost any back or knee problem, and it is the foundation the weighted and banded versions build on.',
+  },
+  {
+    id: 'ex_banded_hip_adduction',
+    program_id: 'prog_knee',
+    name: 'Standing Banded Hip Adduction',
+    category: 'hips_glutes',
+    focus: 'Adductors',
+    video_url: 'demos/standing-banded-hip-adduction-c91fd0e4-720p.mp4',
+    thumbnail_url: 'demos/standing-banded-hip-adduction-d2b03b79.webp',
+    prerequisites: 'None',
+    instructions:
+      'Anchor a band low and to one side and loop it around the ankle nearest to it. Stand tall on the other leg, hands on your hips or on something for balance, then sweep the banded leg across in front of your body against the pull and let it return slowly. Keep your hips level and your trunk still.',
+    purpose:
+      'Groin strains are among the most common injuries in kicking and side-stepping sports, and the inner thigh is one of the least trained muscle groups. Working it against a band builds the strength that protects it, and steadies the knee when you stand on one leg.',
+  },
+  {
+    id: 'ex_resisted_slr',
+    program_id: 'prog_knee',
+    name: 'Resisted Straight Leg Raise',
+    category: 'lower_body',
+    focus: 'Quadriceps and hip flexors',
+    video_url: 'demos/resisted-straight-leg-raise-72c2a811-720p.mp4',
+    thumbnail_url: 'demos/resisted-straight-leg-raise-d15beecc.webp',
+    prerequisites: 'Can lift the straight leg without the knee bending',
+    instructions:
+      'Lie on your back with both legs straight and a loop band around both ankles. Tighten the thigh of one leg so the knee locks straight, then lift that leg to about 30 to 45 degrees against the band while the other stays down. Hold for two seconds and lower slowly. Finish the set before switching legs.',
+    purpose:
+      'The straight leg raise is one of the first quad exercises a knee can do after surgery, and the band is how it keeps being useful once bodyweight is easy. Locking the knee straight before you lift is the whole exercise: it wakes up the thigh muscle that switches off after most knee injuries.',
+  },
+  {
+    // Filed as a prone hip extension before the clip was checked; the id
+    // stays because saved plans refer to it by id.
+    id: 'ex_prone_hip_extension',
+    program_id: PROGRAM_ID,
+    name: 'Side-Lying Hip Abduction (Ankle Weight)',
+    category: 'hips_glutes',
+    focus: 'Glute medius',
+    video_url: 'demos/prone-hip-extension-ankle-weight-53cbc8a8-720p.mp4',
+    thumbnail_url: 'demos/prone-hip-extension-ankle-weight-73ee2200.webp',
+    prerequisites: 'None',
+    instructions:
+      'Lie on your side with your legs straight and stacked, an ankle weight on the top leg, and your top hand on the floor in front of you for balance. Keeping the top leg straight and the toes pointing forward, lift it towards the ceiling to about 45 degrees, pause, and lower slowly. Do not roll backwards; keep your hips stacked. Finish the set before switching sides.',
+    purpose:
+      'The muscle on the side of the hip keeps your pelvis level and your knee from falling inward every time you stand on one leg. Lying on your side takes balance out of it, so the load goes straight into that muscle. It is the step before the standing banded version.',
+  },
+  {
+    id: 'ex_bosu_push_up',
+    program_id: 'prog_shoulder',
+    name: 'BOSU Push-Up',
+    category: 'upper_body',
+    focus: 'Shoulder stability',
+    video_url: 'demos/bosu-push-up-8c20df35-720p.mp4',
+    thumbnail_url: 'demos/bosu-push-up-4ba6a721.webp',
+    prerequisites: 'Pain-free push-up on the floor',
+    instructions:
+      'Set the BOSU dome-side up and put your hands on top of the dome, either side of the centre, with your body in one straight line from head to heel. Lower your chest towards the dome with your elbows at about 45 degrees from your body, then press back up. Keep your trunk braced so your hips do not sag. Drop to your knees if the full version wobbles.',
+    purpose:
+      'The unstable surface makes the small muscles around the shoulder blade work to keep the joint centred, which is the job they abandon after an injury. It is the same push-up, but the shoulder has to think.',
+  },
+  {
+    id: 'ex_banded_suitcase_hold',
+    program_id: PROGRAM_ID,
+    name: 'Banded Suitcase Hold',
+    category: 'core',
+    focus: 'Trunk stability',
+    video_url: 'demos/banded-suitcase-hold-eb3c6686-720p.mp4',
+    thumbnail_url: 'demos/banded-suitcase-hold-a5fc26cc.webp',
+    prerequisites: 'None',
+    instructions:
+      'Anchor a band low on one side of you and hold the free end in the opposite hand, arm straight down by your side, so the band crosses in front of your legs. Stand tall and do not let it pull you off line: no leaning, no twisting. Hold for the time, breathing normally, then switch sides.',
+    purpose:
+      'Your trunk muscles have to work the whole time just to keep you standing straight, which is exactly the job they do when you carry a bag in one hand. It trains the core to hold the spine still against a sideways pull, the kind of strength a sore back relies on.',
+  },
+  {
+    id: 'ex_seated_banded_tibialis_raise',
+    program_id: 'prog_knee',
+    name: 'Seated Banded Tibialis Raise',
+    category: 'ankle_calf',
+    focus: 'Tibialis anterior',
+    video_url: 'demos/seated-banded-tibialis-raise-5776cf71-720p.mp4',
+    thumbnail_url: 'demos/seated-banded-tibialis-raise-f0966fac.webp',
+    prerequisites: 'None',
+    instructions:
+      'Sit on a chair with a loop band over the top of one foot and the other foot standing on the band to pin it down. Keeping the heel on the floor, pull the toes up towards the shin against the band, hold for a second, and lower slowly.',
+    purpose:
+      'The step between the floor version and the weighted one. It builds the muscle down the front of the shin that controls the foot on every landing, and a chair and a band means it can be done anywhere, daily.',
+  },
+  {
+    id: 'ex_heel_slide',
+    program_id: 'prog_knee',
+    name: 'Heel Slide',
+    category: 'mobility',
+    focus: 'Knee bend',
+    video_url: 'demos/heel-slide-b32bf39b-720p.mp4',
+    thumbnail_url: 'demos/heel-slide-0b29fe75.webp',
+    prerequisites: 'None',
+    instructions:
+      'Lie on your back with both legs straight. Slide one heel along the surface towards your glutes, bending the knee as far as it comfortably goes, hold for a few seconds at the end, then slide it back out. A sock on a smooth surface makes it easier.',
+    purpose:
+      'The first thing a swollen or operated knee needs is to bend again, and this gets it bending with the leg supported and no load on the joint. It is the exercise for the first weeks, done little and often.',
+  },
+  {
+    id: 'ex_seated_calf_raise_loaded',
+    program_id: 'prog_knee',
+    name: 'Seated Calf Raise (Loaded)',
+    category: 'ankle_calf',
+    focus: 'Soleus',
+    video_url: 'demos/seated-calf-raise-loaded-fd45cd59-720p.mp4',
+    thumbnail_url: 'demos/seated-calf-raise-loaded-fa3b4975.webp',
+    prerequisites: 'Comfortable with the bent knee calf raise',
+    instructions:
+      'Sit on a chair with your feet flat and a weight resting across your knees: a water or sand bag, a plate or a dumbbell. Rise onto the balls of both feet as high as you can, pause at the top, and lower slowly. Keep the weight over your knees, not up on your thighs.',
+    purpose:
+      'A knee bent to ninety degrees puts the whole load on the soleus, the deep calf muscle that holds you up through every stride of a run. It is the same exercise as the bent knee calf raise, with the weight that makes it worth doing.',
+  },
+  {
+    id: 'ex_supine_hamstring_stretch',
+    program_id: 'prog_knee',
+    name: 'Supine Hamstring Stretch',
+    category: 'mobility',
+    focus: 'Hamstrings',
+    video_url: 'demos/supine-hamstring-stretch-2e334428-720p.mp4',
+    thumbnail_url: 'demos/supine-hamstring-stretch-e61bb6c5.webp',
+    prerequisites: 'None',
+    instructions:
+      'Lie on your back with one leg flat. Hold the back of the other thigh with both hands and bring it to vertical, then straighten the knee until you feel a stretch behind the thigh. Hold there and breathe, then ease off. Keep the other leg and your lower back flat on the surface.',
+    purpose:
+      'Lying down takes the back out of the stretch, so what you feel is hamstring and nothing else. Useful on the days a knee has been kept bent too long, or as the cool-down after hamstring loading.',
+  },
+  {
+    id: 'ex_long_arc_quad',
+    program_id: 'prog_knee',
+    name: 'Long Arc Quad',
+    category: 'lower_body',
+    focus: 'Quadriceps',
+    video_url: 'demos/long-arc-quad-9d776b3e-720p.mp4',
+    thumbnail_url: 'demos/long-arc-quad-c6dbc2a3.webp',
+    prerequisites: 'Pain-free terminal knee extension',
+    instructions:
+      'Sit tall on a box or high chair so your feet hang clear of the floor, hands resting on the edge. Straighten one knee all the way, squeezing the thigh so the kneecap pulls up, hold for two seconds, then lower slowly back to the start. Add an ankle weight once bodyweight is easy.',
+    purpose:
+      'The full-range partner to the terminal knee extension. It takes the knee from bent to straight under load, which is what stairs and sitting down ask of it, and it is the standard step between the first quad work and the leg extension machine.',
+  },
 ];
+
+/**
+ * The catalogue: only movements whose demonstration is uploaded. A coach
+ * should never be able to prescribe something the member cannot watch, so an
+ * exercise joins the moment its `video_url` is filled in above — the picker,
+ * the routines and the backend export all read this list, not the one above.
+ */
+export const exercises: Exercise[] = authoredExercises.filter((exercise) => exercise.video_url !== null);
+
+const catalogued = new Set(exercises.map((exercise) => exercise.id));
+
+/**
+ * The sets a coach starts from when adding each movement to a day. Only a
+ * starting point: every line stays editable before the week is saved.
+ */
+export const suggestedSets: Record<string, string> = {
+  ex_split_squat: '3 x 8 each side',
+  ex_505_cod: '4 runs each side · 2 min rest',
+  ex_bent_knee_calf_raise: '3 x 12 reps · Slow lower',
+  ex_db_front_lateral_raise: '3 x 8 reps · Light weight',
+  ex_loaded_hip_flexion: '3 x 10 each side',
+  ex_nordic_curl: '3 x 5 reps · As slow as you can',
+  ex_rolling_sprint: '4 x 30m · Full recovery between',
+  ex_smith_squat: '3 x 10 reps · To a pain-free depth',
+  ex_tke_seated: '3 x 15 reps · 2s hold at the top',
+  ex_walking_lunge: '2 x 10 steps each side',
+  ex_single_leg_quad_extension: '3 x 10 each side · 3s lower',
+  ex_weighted_bridge: '3 x 12 reps · 2s squeeze at the top',
+  ex_weighted_tibialis_raise: '3 x 15 reps',
+  ex_sled_push: '4 x 15m · Full rest between',
+  ex_banded_hip_hinge: '3 x 12 reps',
+  ex_resisted_ankle_dorsiflexion: '3 x 15 each side · 2s hold',
+  ex_drop_landing: '3 x 5 landings · Hold each for 2s',
+  ex_leg_press: '3 x 10 reps',
+  ex_single_leg_calf_raise: '3 x 12 each side · Slow lower',
+  ex_prone_hamstring_curl: '3 x 10 reps · 3s lower',
+  ex_banded_hip_abduction: '3 x 12 each side',
+  ex_banded_glute_bridge: '3 x 12 reps · 2s hold at the top',
+  ex_glute_bridge: '3 x 12 reps · 2s squeeze at the top',
+  ex_banded_hip_adduction: '3 x 12 each side',
+  ex_resisted_slr: '3 x 10 each side · 2s hold',
+  ex_prone_hip_extension: '3 x 12 each side',
+  ex_bosu_push_up: '3 x 8 reps',
+  ex_banded_suitcase_hold: '3 x 30s each side',
+  ex_seated_banded_tibialis_raise: '3 x 15 each side',
+  ex_heel_slide: '2 x 15 each side · Little and often',
+  ex_seated_calf_raise_loaded: '3 x 15 reps · Slow lower',
+  ex_supine_hamstring_stretch: '3 x 30s hold each side',
+  ex_long_arc_quad: '3 x 12 each side · 2s hold at the top',
+};
 
 /** The running order of each session. Prescriptions live here, not on the exercise. */
 export const sessionExercises: SessionExercise[] = [
-  { id: 'se_flow_1', session_type_id: 'st_flow', exercise_id: 'ex_back_extension', sort_order: 1, prescription: '3 x 2m holds' },
   { id: 'se_flow_2', session_type_id: 'st_flow', exercise_id: 'ex_hip_hinge', sort_order: 2, prescription: '3 x 10 reps' },
   { id: 'se_flow_3', session_type_id: 'st_flow', exercise_id: 'ex_bird_dog', sort_order: 3, prescription: '3 x 8 reps · Both sides' },
   { id: 'se_flow_4', session_type_id: 'st_flow', exercise_id: 'ex_dead_bug', sort_order: 4, prescription: '3 x 10 reps' },
@@ -403,7 +903,85 @@ export const sessionExercises: SessionExercise[] = [
   { id: 'se_mob_4', session_type_id: 'st_mobility', exercise_id: 'ex_deep_squat', sort_order: 4, prescription: '2 x 2m holds' },
   { id: 'se_mob_5', session_type_id: 'st_mobility', exercise_id: 'ex_thoracic_opener', sort_order: 5, prescription: '2 x 1m · Both sides' },
   { id: 'se_mob_6', session_type_id: 'st_mobility', exercise_id: 'ex_hamstring_floss', sort_order: 6, prescription: '2 x 12 reps · Both sides' },
+].filter((line) => catalogued.has(line.exercise_id));
+
+/**
+ * The routines a physio can set for a member. Each is a complete session on
+ * its own, so a member with a routine and no program still has a day's work.
+ */
+const authoredRoutines: Routine[] = [
+  {
+    id: 'rt_lower_back_foundation',
+    name: 'Lower Back Foundation',
+    description: 'The core strength and hip work that takes the load off a sore back.',
+    icon: 'body-outline',
+    approx_duration_min: 45,
+    exercises: [
+      { exercise_id: 'ex_glute_bridge', sort_order: 1, prescription: '3 x 12 reps · 2s squeeze at the top' },
+      { exercise_id: 'ex_dead_bug', sort_order: 2, prescription: '2 x 8 reps · Slow tempo' },
+      { exercise_id: 'ex_bird_dog', sort_order: 3, prescription: '2 x 8 each side' },
+      { exercise_id: 'ex_banded_hip_hinge', sort_order: 4, prescription: '3 x 12 reps' },
+      { exercise_id: 'ex_loaded_hip_flexion', sort_order: 5, prescription: '3 x 10 each side' },
+      { exercise_id: 'ex_banded_suitcase_hold', sort_order: 6, prescription: '3 x 30s each side' },
+    ],
+  },
+  {
+    id: 'rt_knee_foundation',
+    name: 'Knee Foundation',
+    description: 'Rebuilding a knee after injury or surgery: lockout, calf and controlled loading.',
+    icon: 'walk-outline',
+    approx_duration_min: 35,
+    exercises: [
+      { exercise_id: 'ex_tke_seated', sort_order: 1, prescription: '3 x 15 reps · 2s hold at the top' },
+      { exercise_id: 'ex_bent_knee_calf_raise', sort_order: 2, prescription: '3 x 12 reps · Slow lower' },
+      { exercise_id: 'ex_split_squat', sort_order: 3, prescription: '3 x 8 each side' },
+      { exercise_id: 'ex_smith_squat', sort_order: 4, prescription: '3 x 10 reps · To a pain-free depth' },
+      { exercise_id: 'ex_walking_lunge', sort_order: 5, prescription: '2 x 10 steps each side' },
+    ],
+  },
+  {
+    id: 'rt_shoulder_foundation',
+    name: 'Shoulder Foundation',
+    description: 'Restoring strength and confidence in a shoulder that has stopped reaching.',
+    icon: 'barbell-outline',
+    approx_duration_min: 30,
+    exercises: [
+      { exercise_id: 'ex_thoracic_opener', sort_order: 1, prescription: '2 x 8 each side' },
+      { exercise_id: 'ex_db_front_lateral_raise', sort_order: 2, prescription: '3 x 8 reps · Light weight' },
+      { exercise_id: 'ex_bosu_push_up', sort_order: 3, prescription: '3 x 8 reps' },
+      { exercise_id: 'ex_bird_dog', sort_order: 4, prescription: '2 x 8 each side' },
+      { exercise_id: 'ex_banded_suitcase_hold', sort_order: 5, prescription: '3 x 30s each side' },
+    ],
+  },
+  {
+    id: 'rt_return_to_sport',
+    name: 'Return to Sport',
+    description: 'Hamstring and change-of-direction work for the last stretch before playing again.',
+    icon: 'fitness-outline',
+    approx_duration_min: 40,
+    exercises: [
+      { exercise_id: 'ex_nordic_curl', sort_order: 1, prescription: '3 x 5 reps · As slow as you can' },
+      { exercise_id: 'ex_walking_lunge', sort_order: 2, prescription: '2 x 10 steps each side' },
+      { exercise_id: 'ex_rolling_sprint', sort_order: 3, prescription: '4 x 30m · Full recovery between' },
+      { exercise_id: 'ex_505_cod', sort_order: 4, prescription: '4 runs each side · 2 min rest' },
+      { exercise_id: 'ex_hamstring_floss', sort_order: 5, prescription: '2 x 12 each side' },
+    ],
+  },
 ];
+
+/**
+ * The routines as a coach sees them: each one trimmed to the movements in the
+ * catalogue and renumbered, and dropped altogether if nothing on it is filmed.
+ * Lines waiting on footage come back on their own once it is uploaded.
+ */
+export const routines: Routine[] = authoredRoutines
+  .map((routine) => ({
+    ...routine,
+    exercises: routine.exercises
+      .filter((line) => catalogued.has(line.exercise_id))
+      .map((line, index) => ({ ...line, sort_order: index + 1 })),
+  }))
+  .filter((routine) => routine.exercises.length > 0);
 
 export const weeklySchedule: WeeklyScheduleEntry[] = [
   { id: 'ws_mon', user_id: USER_ID, program_id: PROGRAM_ID, day_of_week: 'monday', session_type_id: 'st_flow' },
@@ -420,16 +998,6 @@ export const defaultSchedule: ScheduleMap = weeklySchedule.reduce((acc, entry) =
   acc[entry.day_of_week] = entry.session_type_id;
   return acc;
 }, {} as ScheduleMap);
-
-export const sessions: Session[] = [
-  { id: 's_17', user_id: USER_ID, program_id: PROGRAM_ID, session_type_id: 'st_flow', scheduled_date: '2026-08-17', status: 'completed', completed_at: '2026-08-17T08:30:00Z' },
-  { id: 's_18', user_id: USER_ID, program_id: PROGRAM_ID, session_type_id: 'st_mobility', scheduled_date: '2026-08-18', status: 'scheduled', completed_at: null },
-  { id: 's_19', user_id: USER_ID, program_id: PROGRAM_ID, session_type_id: 'st_flow', scheduled_date: '2026-08-19', status: 'scheduled', completed_at: null },
-  { id: 's_20', user_id: USER_ID, program_id: PROGRAM_ID, session_type_id: 'st_mobility', scheduled_date: '2026-08-20', status: 'scheduled', completed_at: null },
-  { id: 's_21', user_id: USER_ID, program_id: PROGRAM_ID, session_type_id: 'st_flow', scheduled_date: '2026-08-21', status: 'scheduled', completed_at: null },
-  { id: 's_22', user_id: USER_ID, program_id: PROGRAM_ID, session_type_id: null, scheduled_date: '2026-08-22', status: 'rest', completed_at: null },
-  { id: 's_23', user_id: USER_ID, program_id: PROGRAM_ID, session_type_id: null, scheduled_date: '2026-08-23', status: 'rest', completed_at: null },
-];
 
 export const signatureExercise: SignatureExercise = {
   id: 'sig_back_ext',
@@ -575,113 +1143,6 @@ export const learnContent: LearnContent[] = [
     sort_order: 4,
   },
 ];
-
-/** A week of check-ins so the trend has something to draw before the user adds theirs. */
-export const progress: Progress[] = [
-  { id: 'pr_11', user_id: USER_ID, date: '2026-08-11', checked_in: true, pain_score: 7, pain_location: 'Lower back, left side', deposits_made: 1, workouts_completed: 1 },
-  { id: 'pr_12', user_id: USER_ID, date: '2026-08-12', checked_in: true, pain_score: 6, pain_location: 'Lower back', deposits_made: 1, workouts_completed: 0 },
-  { id: 'pr_13', user_id: USER_ID, date: '2026-08-13', checked_in: true, pain_score: 6, pain_location: 'Lower back into the glute', deposits_made: 1, workouts_completed: 1 },
-  { id: 'pr_14', user_id: USER_ID, date: '2026-08-14', checked_in: true, pain_score: 5, pain_location: 'Lower back', deposits_made: 1, workouts_completed: 1 },
-  { id: 'pr_15', user_id: USER_ID, date: '2026-08-15', checked_in: true, pain_score: 4, pain_location: 'Stiff in the morning only', deposits_made: 1, workouts_completed: 0 },
-  { id: 'pr_16', user_id: USER_ID, date: '2026-08-16', checked_in: true, pain_score: 4, pain_location: 'Lower back', deposits_made: 1, workouts_completed: 1 },
-  { id: 'pr_17', user_id: USER_ID, date: '2026-08-17', checked_in: true, pain_score: 3, pain_location: 'Barely there after the session', deposits_made: 1, workouts_completed: 1 },
-];
-
-export const todayProgress: Progress = progress[progress.length - 1];
-
-
-/** Dates the user has already finished a session on — the seed for the log. */
-export const completedDates: ISODate[] = sessions
-  .filter((s) => s.status === 'completed')
-  .map((s) => s.scheduled_date);
-
-const clientProgress = (
-  userId: string,
-  scores: [ISODate, number, string][]
-): Progress[] =>
-  scores.map(([date, pain_score, pain_location]) => ({
-    id: `pr_${userId}_${date}`,
-    user_id: userId,
-    date,
-    checked_in: true,
-    pain_score,
-    pain_location,
-    deposits_made: 1,
-    workouts_completed: 0,
-  }));
-
-/**
- * Check-in history per client. The admin roster and client detail read from
- * here; the signed-in member's own log is owned by CheckInProvider.
- */
-export const progressByUser: Record<string, Progress[]> = {
-  [USER_ID]: progress,
-  user_2: clientProgress('user_2', [
-    ['2026-08-14', 5, 'Lower back, both sides'],
-    ['2026-08-15', 5, 'Lower back'],
-    ['2026-08-16', 4, 'Eased after the session'],
-    ['2026-08-17', 4, 'Stiff first thing'],
-    ['2026-08-18', 3, 'Lower back'],
-    ['2026-08-19', 3, 'Barely noticeable'],
-    ['2026-08-20', 2, 'Only after sitting'],
-  ]),
-  user_3: clientProgress('user_3', [
-    ['2026-08-12', 6, 'Right knee, front'],
-    ['2026-08-14', 7, 'Right knee after stairs'],
-    ['2026-08-16', 6, 'Right knee'],
-    ['2026-08-17', 6, 'Aching through the day'],
-  ]),
-  user_4: [],
-};
-
-/** Dates each client has completed a session on, for the adherence column. */
-export const completedByUser: Record<string, ISODate[]> = {
-  [USER_ID]: completedDates,
-  user_2: ['2026-08-14', '2026-08-16', '2026-08-17', '2026-08-19', '2026-08-20'],
-  user_3: ['2026-08-12', '2026-08-16'],
-  user_4: [],
-};
-
-/**
- * Exercises prescribed to one client on top of their program. Seeded so the
- * "For You" tab and the admin assignment screen both have something to show.
- */
-export const assignedExercises: AssignedExercise[] = [
-  {
-    id: 'ae_1',
-    user_id: USER_ID,
-    exercise_id: 'ex_couch_stretch',
-    assigned_by: ADMIN_ID,
-    prescription: '2 x 90s holds · Both sides · Every evening',
-    note: 'Your left hip is the tighter one — give that side the longer hold. Do this before bed, not before training.',
-    sort_order: 1,
-    is_active: true,
-    created_at: '2026-08-17T10:00:00Z',
-  },
-  {
-    id: 'ae_2',
-    user_id: USER_ID,
-    exercise_id: 'ex_dead_bug',
-    assigned_by: ADMIN_ID,
-    prescription: '2 x 8 reps · Slow tempo',
-    note: 'Added because your back was lifting off the floor on the last set we did together. Stop the set the moment that happens.',
-    sort_order: 2,
-    is_active: true,
-    created_at: '2026-08-17T10:02:00Z',
-  },
-  {
-    id: 'ae_3',
-    user_id: 'user_2',
-    exercise_id: 'ex_hamstring_floss',
-    assigned_by: ADMIN_ID,
-    prescription: '2 x 12 reps · Both sides · Morning',
-    note: 'For the sciatic tightness you mentioned. Keep it moving, do not hold the stretch.',
-    sort_order: 1,
-    is_active: true,
-    created_at: '2026-08-15T08:30:00Z',
-  },
-];
-
 
 export const demoLogins: { label: string; email: string; password: string; role: string }[] = [
   { label: 'Dr. Priya Nair', email: 'admin@100mph.in', password: 'admin@123', role: 'Admin' },

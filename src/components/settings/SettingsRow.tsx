@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/theme';
+import { useHover } from '@/hooks/useHover';
 import { Text } from '../ui/Text';
 
 type SettingsRowProps = {
@@ -26,16 +27,27 @@ export function SettingsRow({
   onPress,
 }: SettingsRowProps) {
   const { theme } = useTheme();
+  const { hovered, hoverProps } = useHover();
   const danger = tone === 'danger';
 
   const iconColor = danger ? theme.colors.danger : theme.colors.textSecondary;
 
   return (
     <Pressable
+      {...hoverProps}
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
-      style={({ pressed }) => [styles.row, { opacity: pressed ? 0.6 : 1 }]}
+      style={({ pressed }) => [
+        styles.row,
+        {
+          opacity: pressed ? 0.6 : 1,
+          // Rows that do nothing must not light up — several of these are
+          // read-only value displays rather than controls.
+          backgroundColor: hovered && onPress ? theme.colors.surfaceAlt : 'transparent',
+          borderRadius: theme.radius.md,
+        },
+      ]}
     >
       <View
         style={[

@@ -32,6 +32,10 @@ export interface User {
   avatar_url: string | null;
   /** The program this person is on. Null for staff, who do not train here. */
   active_program_id: UUID | null;
+  /** Filled in by the member from Settings. Each stays null until they do. */
+  date_of_birth: ISODate | null;
+  height_cm: number | null;
+  weight_kg: number | null;
   role: UserRole;
   status: UserStatus;
   member_since: ISODate;
@@ -127,10 +131,27 @@ export interface WeeklyScheduleEntry {
  */
 export type ScheduleMap = Record<DayOfWeek, UUID | null>;
 
+/**
+ * How the catalogue is shelved when a coach is choosing movements. Coarser
+ * than `focus` (which is free text) and independent of `program_id` (a knee
+ * program borrows hip and calf work all the time), so the picker can group
+ * fifty exercises into a handful of headings a physio already thinks in.
+ */
+export type ExerciseCategory =
+  | 'back'
+  | 'core'
+  | 'hips_glutes'
+  | 'lower_body'
+  | 'ankle_calf'
+  | 'upper_body'
+  | 'mobility'
+  | 'athletic';
+
 export interface Exercise {
   id: UUID;
   program_id: UUID;
   name: string;
+  category: ExerciseCategory;
   /** One line on what it works, for the list and the guide subtitle. */
   focus: string;
   video_url: string | null;
@@ -147,6 +168,62 @@ export interface SessionExercise {
   exercise_id: UUID;
   sort_order: number;
   /** What this session asks for today, e.g. '2 x 1m holds'. */
+  prescription: string;
+}
+
+/**
+ * A member's training week, written by their physio: each day carries the
+ * exercises to be done with a prescription for each, and an empty day is rest.
+ * This is what a member trains on; the program is only a focus area now.
+ */
+export interface WeeklyPlan {
+  user_id: UUID;
+  days: WeeklyPlanDays;
+  updated_by: UUID | null;
+  updated_by_name: string | null;
+  updated_at: string | null;
+}
+
+export type WeeklyPlanDays = Record<DayOfWeek, PlannedLine[]>;
+
+/** One line of a day. The exercise is inlined by the server; null if the catalogue lost it. */
+export interface PlannedLine {
+  exercise_id: UUID;
+  sort_order: number;
+  prescription: string;
+  exercise: Exercise | null;
+}
+
+/** A day's check-in as the app renders it. */
+export interface CheckIn {
+  id: UUID;
+  date: ISODate;
+  checked_in: boolean;
+  /** 0 = no pain, 10 = severe. Null when the day was logged without a score. */
+  pain_score: number | null;
+  /** Free text: where it was felt. */
+  pain_location: string | null;
+}
+
+/**
+ * A named set of exercises a physio can drop onto a day of a member's week as
+ * a starting point. Authored content, deliberately not tied to a program: the
+ * same knee routine serves a runner and a desk worker.
+ */
+export interface Routine {
+  id: UUID;
+  name: string;
+  /** One line on who it is for. */
+  description: string;
+  icon: string;
+  approx_duration_min: number;
+  exercises: RoutineExercise[];
+}
+
+/** One line of a routine: which movement, in what order, and what it asks for. */
+export interface RoutineExercise {
+  exercise_id: UUID;
+  sort_order: number;
   prescription: string;
 }
 

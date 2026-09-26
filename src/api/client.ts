@@ -77,9 +77,28 @@ async function rawRequest(path: string, options: RequestOptions, accessToken: st
   }
 }
 
-async function refreshTokens(): Promise<TokenPair | null> {
+/** The Web Locks API, where the browser has it. Native has no second tab to race. */
+type LockManager = { request: <T>(name: string, callback: () => Promise<T>) => Promise<T> };
+
+/**
+ * Serialises refreshes across browser tabs. The in-flight promise below only
+ * coalesces within one tab; two tabs share one refresh token in localStorage,
+ * and both spending it is, to the server, a stolen token — it revokes the
+ * family and signs the member out everywhere.
+ */
+function withRefreshLock<T>(work: () => Promise<T>): Promise<T> {
+  const locks = (globalThis.navigator as { locks?: LockManager } | undefined)?.locks;
+  return locks ? locks.request('100mph-token-refresh', work) : work();
+}
+
+async function refreshTokens(staleAccessToken: string): Promise<TokenPair | null> {
   const stored = await tokenStore.read();
   if (!stored) return null;
+
+  // Someone else — another tab, or an earlier refresh this request raced —
+  // already rotated the pair. Use theirs rather than spending the old refresh
+  // token a second time.
+  if (stored.accessToken !== staleAccessToken) return stored;
 
   // The zone rides along on every refresh. Sign-in is too rare to keep it
   // honest: the refresh token lasts 30 days, so a member who travels or
@@ -94,8 +113,14 @@ async function refreshTokens(): Promise<TokenPair | null> {
   );
 
   if (!response.ok) {
-    await tokenStore.clear();
-    return null;
+    // Only a verdict on the token itself ends the session. A 502 during a
+    // deploy or a 429 must not sign every member out; it surfaces as an error
+    // and the next request tries again with the same, still valid, token.
+    if (response.status === 401 || response.status === 403) {
+      await tokenStore.clear();
+      return null;
+    }
+    throw await parseError(response);
   }
 
   const body = await response.json();
@@ -108,9 +133,9 @@ async function refreshTokens(): Promise<TokenPair | null> {
 }
 
 /** Coalesces concurrent refreshes into one, then clears the slot. */
-function refreshOnce(): Promise<TokenPair | null> {
+function refreshOnce(staleAccessToken: string): Promise<TokenPair | null> {
   if (!refreshInFlight) {
-    refreshInFlight = refreshTokens().finally(() => {
+    refreshInFlight = withRefreshLock(() => refreshTokens(staleAccessToken)).finally(() => {
       refreshInFlight = null;
     });
   }
@@ -124,7 +149,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   // One retry, and only for an expired token. A 401 from the auth endpoints
   // themselves is a real failure, not something a refresh can fix.
   if (response.status === 401 && !options.anonymous && stored) {
-    const refreshed = await refreshOnce();
+    const refreshed = await refreshOnce(stored.accessToken);
 
     if (!refreshed) {
       onSessionExpired?.();

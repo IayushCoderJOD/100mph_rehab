@@ -29,6 +29,31 @@ export const API_BASE_URL =
   `http://localhost:${DEV_PORT}/v1`;
 
 /**
+ * A deployed web build has no Metro host to infer from, so if the base URL was
+ * not pinned at build time every request quietly goes to `localhost` — the
+ * visitor's own machine, not the API. The page loads, looks perfectly healthy,
+ * and every call fails; on an HTTPS origin the browser blocks them as mixed
+ * content before they even leave. That is an expensive thing to discover after
+ * shipping, so say it plainly at boot instead.
+ *
+ * Deliberately a warning rather than a throw: a broken API URL should not stop
+ * the bundle from running, and nothing is gained by turning a diagnosable
+ * problem into a blank screen.
+ */
+if (
+  typeof window !== 'undefined' &&
+  !process.env.EXPO_PUBLIC_API_BASE_URL &&
+  API_BASE_URL.includes('localhost') &&
+  window.location?.hostname !== 'localhost'
+) {
+  console.warn(
+    `[100mph] API_BASE_URL resolved to ${API_BASE_URL}, but this page is served ` +
+      `from ${window.location?.hostname}. Set EXPO_PUBLIC_API_BASE_URL at build ` +
+      `time — every API call from this deployment will fail without it.`
+  );
+}
+
+/**
  * Where the demonstration videos and their posters are served from, without a
  * trailing slash — e.g. `https://media.100mph.in`.
  *

@@ -61,7 +61,7 @@ function DayCell({
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${day.short_label} ${day.date}, ${day.session_type?.name ?? 'Rest'}`}
+      accessibilityLabel={`${day.short_label} ${day.date}, ${day.plan.length === 0 ? 'Rest' : `${day.plan.length} exercises`}`}
     >
       <Text variant="caption" color={day.is_today ? 'accentText' : 'textSecondary'}>
         {day.short_label}
@@ -154,7 +154,9 @@ export function WeekStrip({
         ))}
       </ScrollView>
 
-      <Button label="Edit Schedule" variant="ghost" onPress={onEditSchedule} style={styles.edit} />
+      {onEditSchedule ? (
+        <Button label="Edit Schedule" variant="ghost" onPress={onEditSchedule} style={styles.edit} />
+      ) : null}
     </Card>
   );
 }

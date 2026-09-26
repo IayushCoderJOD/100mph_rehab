@@ -4,10 +4,9 @@ import {
   Exercise,
   ISODate,
   LearnContent,
-  ScheduleMap,
-  SessionExercise,
+  PlannedLine,
   SessionStatus,
-  SessionType,
+  WeeklyPlanDays,
 } from './types';
 import { progressionLevels, signatureExercise, userProgression } from './mock';
 
@@ -19,14 +18,21 @@ export type WeekDay = {
   iso_date: ISODate;
   status: SessionStatus;
   is_today: boolean;
-  session_type: SessionType | null;
+  /** The day's work in running order; empty on a rest day or with no plan yet. */
+  plan: PlannedExercise[];
 };
 
-export function findSessionType(
-  sessionTypes: SessionType[],
-  id: string | null
-): SessionType | null {
-  return id ? (sessionTypes.find((s) => s.id === id) ?? null) : null;
+/** One line of a session: the exercise, and what the day asks of it. */
+export type PlannedExercise = {
+  exercise: Exercise;
+  prescription: string;
+};
+
+/** Drops lines whose exercise the catalogue no longer has — a blank row helps nobody. */
+export function toPlannedExercises(lines: PlannedLine[]): PlannedExercise[] {
+  return [...lines]
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .flatMap((line) => (line.exercise ? [{ exercise: line.exercise, prescription: line.prescription }] : []));
 }
 
 /** ISO dates sort lexicographically, so plain comparison is a date comparison. */
@@ -44,8 +50,8 @@ function resolveStatus(
 }
 
 type BuildWeekArgs = {
-  schedule: ScheduleMap;
-  sessionTypes: SessionType[];
+  /** Null when the physio has not written the week yet — every day is rest. */
+  days: WeeklyPlanDays | null;
   completedDates: ISODate[];
   /** Any date inside the week to render. Defaults to now. */
   anchor?: Date;
@@ -56,12 +62,7 @@ type BuildWeekArgs = {
  * falls in. The plan is a template; the dates come from the calendar, so the
  * strip stays correct as days pass without any stored per-date rows.
  */
-export function buildWeek({
-  schedule,
-  sessionTypes,
-  completedDates,
-  anchor = new Date(),
-}: BuildWeekArgs): WeekDay[] {
+export function buildWeek({ days, completedDates, anchor = new Date() }: BuildWeekArgs): WeekDay[] {
   const monday = startOfWeek(anchor);
   const todayIso = toISODate(anchor);
   const done = new Set(completedDates);
@@ -69,16 +70,16 @@ export function buildWeek({
   return WEEK_DAYS.map((dayOfWeek, index) => {
     const date = addDays(monday, index);
     const iso = toISODate(date);
-    const sessionType = findSessionType(sessionTypes, schedule[dayOfWeek]);
+    const plan = toPlannedExercises(days?.[dayOfWeek] ?? []);
 
     return {
       day_of_week: dayOfWeek,
       short_label: DAY_SHORT[dayOfWeek],
       date: date.getDate(),
       iso_date: iso,
-      status: resolveStatus(iso, todayIso, !!sessionType, done.has(iso)),
+      status: resolveStatus(iso, todayIso, plan.length > 0, done.has(iso)),
       is_today: iso === todayIso,
-      session_type: sessionType,
+      plan,
     };
   });
 }
@@ -90,35 +91,21 @@ export function getCurrentProgression() {
   return { signatureExercise, level: level ?? progressionLevels[0] };
 }
 
-/** One line of a session: the exercise, and what today asks of it. */
-export type PlannedExercise = {
-  exercise: Exercise;
-  prescription: string;
-};
-
 export function findExercise(exercises: Exercise[], id: string | null): Exercise | null {
   return id ? (exercises.find((e) => e.id === id) ?? null) : null;
 }
 
-/**
- * The running order for a session type. Returns an empty plan for rest days,
- * so callers can render the same way whether or not there is a session.
- */
-export function buildSessionPlan(
-  sessionTypeId: string | null,
-  exercises: Exercise[],
-  sessionExercises: SessionExercise[]
-): PlannedExercise[] {
-  if (!sessionTypeId) return [];
-
-  return sessionExercises
-    .filter((link) => link.session_type_id === sessionTypeId)
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .reduce<PlannedExercise[]>((plan, link) => {
-      const exercise = findExercise(exercises, link.exercise_id);
-      if (exercise) plan.push({ exercise, prescription: link.prescription });
-      return plan;
-    }, []);
+/** Whole years between a date of birth and today, or null when unknown. */
+export function ageFrom(dateOfBirth: ISODate | null | undefined, today: Date = new Date()): number | null {
+  if (!dateOfBirth) return null;
+  const born = new Date(dateOfBirth + 'T00:00:00');
+  if (Number.isNaN(born.getTime())) return null;
+  let age = today.getFullYear() - born.getFullYear();
+  const beforeBirthday =
+    today.getMonth() < born.getMonth() ||
+    (today.getMonth() === born.getMonth() && today.getDate() < born.getDate());
+  if (beforeBirthday) age -= 1;
+  return age >= 0 ? age : null;
 }
 
 /** Learn content split by kind, each in the order it was authored. */

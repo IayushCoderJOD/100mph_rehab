@@ -1,19 +1,17 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { clientStats } from '@/admin';
 import { useAccess } from '@/access';
-import { ClientRow } from '@/components/admin';
+import { ClientRow, daysSince } from '@/components/admin';
 import { TextField } from '@/components/form';
 import { Button, Card, Screen, SegmentedControl, Text } from '@/components/ui';
-import { mock } from '@/data';
 import { useDirectory } from '@/directory/DirectoryProvider';
 
-type Filter = 'all' | 'attention';
+type Filter = 'all' | 'attention' | 'unplanned';
 
 export default function ClientsScreen() {
   const router = useRouter();
-  const { users } = useDirectory();
+  const { roster, loading, error, reload } = useDirectory();
   const { can } = useAccess();
 
   const [query, setQuery] = useState('');
@@ -22,32 +20,22 @@ export default function ClientsScreen() {
   const clients = useMemo(() => {
     const term = query.trim().toLowerCase();
 
-    return users
-      .filter((u) => u.role === 'member')
-      .map((client) => ({
-        client,
-        stats: clientStats(client.id),
-        programName:
-          mock.programs.find((p) => p.id === client.active_program_id)?.name ?? 'No program',
-      }))
-      .filter(({ client }) =>
+    return roster
+      .filter((row) =>
         term.length === 0
           ? true
-          : client.full_name.toLowerCase().includes(term) ||
-            client.email.toLowerCase().includes(term)
+          : row.user.full_name.toLowerCase().includes(term) ||
+            row.user.email.toLowerCase().includes(term)
       )
-      .filter(({ stats }) => (filter === 'attention' ? stats.needsAttention : true))
+      .filter((row) =>
+        filter === 'attention' ? row.needs_attention : filter === 'unplanned' ? !row.has_plan : true
+      )
       // Quiet clients first: the roster is a worklist, not an address book.
-      .sort((a, b) => (b.stats.daysSinceCheckIn ?? 99) - (a.stats.daysSinceCheckIn ?? 99));
-  }, [users, query, filter]);
+      .sort((a, b) => (daysSince(b.last_active_date) ?? 999) - (daysSince(a.last_active_date) ?? 999));
+  }, [roster, query, filter]);
 
-  const memberCount = users.filter((u) => u.role === 'member').length;
-
-  const attentionCount = useMemo(
-    () =>
-      users.filter((u) => u.role === 'member' && clientStats(u.id).needsAttention).length,
-    [users]
-  );
+  const attentionCount = roster.filter((row) => row.needs_attention).length;
+  const unplannedCount = roster.filter((row) => !row.has_plan).length;
 
   return (
     <Screen scroll>
@@ -55,7 +43,8 @@ export default function ClientsScreen() {
         Clients
       </Text>
       <Text variant="caption" color="textSecondary" align="center" style={styles.pageNote}>
-        {memberCount} on the books · {attentionCount} need a nudge
+        {roster.length} on the books · {attentionCount} need a nudge
+        {unplannedCount > 0 ? ` · ${unplannedCount} without a week` : ''}
       </Text>
 
       {can('clients.create') ? (
@@ -79,13 +68,30 @@ export default function ClientsScreen() {
         segments={[
           { label: 'All', value: 'all' },
           { label: 'Needs attention', value: 'attention' },
+          { label: 'No week', value: 'unplanned' },
         ]}
         value={filter}
         onChange={setFilter}
       />
 
       <View style={styles.list}>
-        {clients.length === 0 ? (
+        {error && roster.length === 0 ? (
+          <Card style={styles.empty}>
+            <Text variant="heading" align="center">
+              Could not load the roster
+            </Text>
+            <Text variant="caption" color="textSecondary" align="center" style={styles.emptyNote}>
+              {error}
+            </Text>
+            <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.retry} />
+          </Card>
+        ) : loading && roster.length === 0 ? (
+          <Card style={styles.empty}>
+            <Text variant="caption" color="textSecondary" align="center">
+              Loading…
+            </Text>
+          </Card>
+        ) : clients.length === 0 ? (
           <Card style={styles.empty}>
             <Text variant="heading" align="center">
               No clients match
@@ -93,17 +99,17 @@ export default function ClientsScreen() {
             <Text variant="caption" color="textSecondary" align="center" style={styles.emptyNote}>
               {filter === 'attention'
                 ? 'Everyone has checked in recently. Good week.'
-                : 'Try a different search, or create the account.'}
+                : filter === 'unplanned'
+                  ? 'Every client has a week written.'
+                  : 'Try a different search, or create the account.'}
             </Text>
           </Card>
         ) : (
-          clients.map(({ client, stats, programName }) => (
+          clients.map((row) => (
             <ClientRow
-              key={client.id}
-              client={client}
-              stats={stats}
-              programName={programName}
-              onPress={() => router.push(`/admin/client/${client.id}`)}
+              key={row.user.id}
+              summary={row}
+              onPress={() => router.push(`/admin/client/${row.user.id}`)}
             />
           ))
         )}
@@ -120,4 +126,5 @@ const styles = StyleSheet.create({
   list: { gap: 10, marginTop: 20 },
   empty: { alignItems: 'center', paddingVertical: 32 },
   emptyNote: { marginTop: 6 },
+  retry: { marginTop: 16 },
 });

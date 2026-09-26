@@ -1,70 +1,28 @@
 import { useLocalSearchParams } from 'expo-router';
-import { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { IconButton } from '@/components/common';
-import { VideoPoster } from '@/components/session';
+import { ExerciseGuide } from '@/components/session';
 import { Screen, Text } from '@/components/ui';
 import { findExercise } from '@/data';
 import { useDismiss } from '@/navigation/useDismiss';
 import { useProgramData } from '@/program/programData';
-import { useSchedule } from '@/schedule/ScheduleProvider';
-import { useTheme } from '@/theme';
-
-/** An accent tick before the label, so sections read as a spine down the page. */
-function Section({ label, children }: { label: string; children: ReactNode }) {
-  const { theme } = useTheme();
-
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHead}>
-        <View style={[styles.tick, { backgroundColor: theme.colors.accent }]} />
-        <Text variant="label" color="accentText" style={styles.sectionLabel}>
-          {label}
-        </Text>
-      </View>
-      {children}
-    </View>
-  );
-}
-
-function SpecRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
-  const { theme } = useTheme();
-
-  return (
-    <View
-      style={[
-        styles.specRow,
-        !last && { borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-      ]}
-    >
-      <Text variant="caption" color="textSecondary">
-        {label}
-      </Text>
-      <Text variant="bodyStrong" style={styles.specValue}>
-        {value}
-      </Text>
-    </View>
-  );
-}
+import { usePlan } from '@/plan/PlanProvider';
 
 export default function ExerciseGuideScreen() {
   const dismiss = useDismiss();
-  const { theme } = useTheme();
   const { id, date } = useLocalSearchParams<{ id: string; date?: string }>();
-  const { exercises, sessionExercises } = useProgramData();
-  const { today, dayFor } = useSchedule();
+  const { exercises } = useProgramData();
+  const { today, dayFor, week } = usePlan();
 
   const exercise = findExercise(exercises, id ?? null);
 
   // Prefer what the session being viewed asks for — that is the day passed in,
-  // or today when the guide is opened on its own — then fall back to wherever
-  // else the exercise is prescribed, so the guide is readable outside a session.
-  const viewedDay = date ? dayFor(date) : null;
-  const sessionTypeId = (date ? viewedDay : today)?.session_type?.id ?? null;
-  const links = sessionExercises.filter((link) => link.exercise_id === id);
+  // or today when the guide is opened on its own — then fall back to any other
+  // day this week that prescribes it, so the guide is readable outside a session.
+  const viewedDay = date ? dayFor(date) : today;
   const prescription =
-    links.find((link) => link.session_type_id === sessionTypeId)?.prescription ??
-    links[0]?.prescription ??
+    viewedDay?.plan.find((line) => line.exercise.id === id)?.prescription ??
+    week.flatMap((d) => d.plan).find((line) => line.exercise.id === id)?.prescription ??
     null;
 
   return (
@@ -81,38 +39,8 @@ export default function ExerciseGuideScreen() {
           </Text>
         </View>
       ) : (
-        <>
-          <VideoPoster videoUrl={exercise.video_url} posterUrl={exercise.thumbnail_url} />
-
-          <Text variant="display" style={styles.name}>
-            {exercise.name}
-          </Text>
-          <Text variant="subtitle" color="textSecondary" style={styles.focus}>
-            {exercise.focus}
-          </Text>
-
-          <View
-            style={[
-              styles.specs,
-              { borderColor: theme.colors.border, borderRadius: theme.radius.md },
-            ]}
-          >
-            <SpecRow label="Prerequisites" value={exercise.prerequisites} />
-            <SpecRow label="Method" value={prescription ?? 'As prescribed'} last />
-          </View>
-
-          <Section label="INSTRUCTIONS">
-            <Text variant="body" color="textSecondary" style={styles.prose}>
-              {exercise.instructions}
-            </Text>
-          </Section>
-
-          <Section label="PURPOSE">
-            <Text variant="body" color="textSecondary" style={styles.prose}>
-              {exercise.purpose}
-            </Text>
-          </Section>
-        </>
+        // No row at all beats a vague "As prescribed" when nothing is on the plan.
+        <ExerciseGuide exercise={exercise} method={prescription ?? undefined} />
       )}
     </Screen>
   );
@@ -121,21 +49,5 @@ export default function ExerciseGuideScreen() {
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingTop: 8, paddingBottom: 12 },
   headerSpacer: { flex: 1 },
-  name: { marginTop: 26 },
-  focus: { marginTop: 4 },
-  specs: { borderWidth: 1, marginTop: 22, paddingHorizontal: 16 },
-  specRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-    paddingVertical: 14,
-  },
-  specValue: { flexShrink: 1, textAlign: 'right' },
-  section: { marginTop: 30, gap: 10 },
-  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  tick: { width: 3, height: 14, borderRadius: 2 },
-  sectionLabel: { letterSpacing: 1.4 },
-  prose: { lineHeight: 24 },
   empty: { paddingTop: 80 },
 });

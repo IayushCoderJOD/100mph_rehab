@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useAuth } from '@/auth/AuthProvider';
 import { TextField } from '@/components/form';
+import { features } from '@/config/features';
 import { Button, Card, Logo, Screen, Text } from '@/components/ui';
 import { mock } from '@/data';
 import { useTheme } from '@/theme';
@@ -75,11 +76,13 @@ export default function LoginScreen() {
           autoComplete="password"
           autoCapitalize="none"
         />
-        <Pressable hitSlop={8} style={styles.forgot}>
-          <Text variant="bodyStrong" color="accentText">
-            Forgot password?
-          </Text>
-        </Pressable>
+        {features.forgotPassword ? (
+          <Pressable hitSlop={8} style={styles.forgot}>
+            <Text variant="bodyStrong" color="accentText">
+              Forgot password?
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {error ?? authError ? (
@@ -92,6 +95,7 @@ export default function LoginScreen() {
         <Button label="Log In" onPress={handleSubmit} disabled={!valid} loading={loading} />
         <Text variant="caption" color="textMuted" align="center" style={styles.note}>
           Access is provisioned by your coach — there is no public sign-up.
+          {features.forgotPassword ? '' : ' Forgotten your password? Your coach can reset it for you.'}
         </Text>
       </View>
 

@@ -6,10 +6,13 @@ import { useAuth } from '@/auth/AuthProvider';
 import { SettingsRow, SettingsSection } from '@/components/settings';
 import { Button, Card, HeartBadge, Screen, SegmentedControl, Text } from '@/components/ui';
 import { socialLinks, supportEmail } from '@/config/brand';
+import { features } from '@/config/features';
 import { formatLongDate } from '@/data';
 import { useMembership } from '@/membership/MembershipProvider';
-import { useProgramData } from '@/program/programData';
+import { usePlan } from '@/plan/PlanProvider';
 import { ThemeMode, useTheme } from '@/theme';
+
+const shownSocialLinks = socialLinks.filter((link) => features.socialLinks.includes(link.id));
 
 const THEME_SEGMENTS: { label: string; value: ThemeMode }[] = [
   { label: 'Dark', value: 'dark' },
@@ -20,7 +23,7 @@ export default function SettingsScreen() {
   const { theme, mode, setMode } = useTheme();
   const { signOut, user } = useAuth();
   const { can, isAdmin, role } = useAccess();
-  const { program } = useProgramData();
+  const { plan: week, hasPlan } = usePlan();
   const { plan, isActive } = useMembership();
   const router = useRouter();
 
@@ -80,27 +83,27 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="person-outline"
             title="My Account"
-            subtitle="Email, phone and member details"
+            subtitle="Email, phone, age, height and weight"
             onPress={() => router.push('/account')}
           />
-          <SettingsRow
-            icon="card-outline"
-            title="Manage Membership"
-            subtitle={isActive ? 'Change duration or cancel' : 'Cancelled — resume any time'}
-            value={plan.name}
-            onPress={() => router.push('/membership')}
-          />
+          {features.membership ? (
+            <SettingsRow
+              icon="card-outline"
+              title="Manage Membership"
+              subtitle={isActive ? 'Change duration or cancel' : 'Cancelled — resume any time'}
+              value={plan.name}
+              onPress={() => router.push('/membership')}
+            />
+          ) : null}
           <SettingsRow
             icon="calendar-outline"
-            title="Edit Schedule"
-            subtitle="Choose which days you train"
-            onPress={() => router.push('/edit-schedule')}
-          />
-          <SettingsRow
-            icon="body-outline"
-            title="Your Program"
-            subtitle="Assigned by your coach"
-            value={program.name}
+            title="Your Week"
+            subtitle={
+              hasPlan
+                ? `Written by ${week?.updated_by_name ?? 'your physio'}`
+                : 'Your physio has not written it yet'
+            }
+            onPress={() => router.push('/(tabs)')}
           />
         </SettingsSection>
       ) : null}
@@ -129,18 +132,20 @@ export default function SettingsScreen() {
         />
       </SettingsSection>
 
-      <SettingsSection label="Follow 100mph">
-        {socialLinks.map((link) => (
-          <SettingsRow
-            key={link.id}
-            icon={link.icon as keyof typeof Ionicons.glyphMap}
-            title={link.label}
-            subtitle={link.handle}
-            external
-            onPress={() => openUrl(link.url)}
-          />
-        ))}
-      </SettingsSection>
+      {shownSocialLinks.length > 0 ? (
+        <SettingsSection label="Follow 100mph">
+          {shownSocialLinks.map((link) => (
+            <SettingsRow
+              key={link.id}
+              icon={link.icon as keyof typeof Ionicons.glyphMap}
+              title={link.label}
+              subtitle={link.handle}
+              external
+              onPress={() => openUrl(link.url)}
+            />
+          ))}
+        </SettingsSection>
+      ) : null}
 
       <View style={styles.logout}>
         <Button label="Logout" variant="secondary" onPress={handleLogout} />

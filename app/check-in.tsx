@@ -15,13 +15,22 @@ export default function CheckInScreen() {
 
   const [score, setScore] = useState<number | null>(todayCheckIn?.pain_score ?? null);
   const [location, setLocation] = useState(todayCheckIn?.pain_location ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isUpdate = !!todayCheckIn?.checked_in;
   const trend = recent(14).map((entry) => ({ date: entry.date, score: entry.pain_score ?? 0 }));
 
-  const save = () => {
-    if (score === null) return;
-    saveCheckIn({ pain_score: score, pain_location: location });
+  const save = async () => {
+    if (score === null || saving) return;
+    setSaving(true);
+    setError(null);
+    const result = await saveCheckIn({ pain_score: score, pain_location: location });
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
     dismiss();
   };
 
@@ -72,10 +81,17 @@ export default function CheckInScreen() {
         </View>
       </Card>
 
+      {error ? (
+        <Text variant="caption" color="danger" style={styles.error}>
+          {error}
+        </Text>
+      ) : null}
+
       <Button
         label={isUpdate ? 'Update Check In' : 'Save Check In'}
         disabled={score === null}
-        onPress={save}
+        loading={saving}
+        onPress={() => void save()}
         style={styles.save}
       />
 
@@ -102,6 +118,7 @@ const styles = StyleSheet.create({
   blockNote: { marginTop: 4 },
   score: { marginTop: 20, marginBottom: 20, gap: 4 },
   field: { marginTop: 16 },
+  error: { marginTop: 16 },
   save: { marginTop: 24 },
   trend: { marginTop: 20 },
   chart: { marginTop: 14 },

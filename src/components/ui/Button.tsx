@@ -8,6 +8,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { useHover } from '@/hooks/useHover';
 import { useTheme } from '@/theme';
 import { Text } from './Text';
 
@@ -32,12 +33,18 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const { theme } = useTheme();
+  const { hovered, hoverProps } = useHover();
   const isDisabled = disabled || loading;
+  const lifted = hovered && !isDisabled;
 
   const shell: ViewStyle = {
     borderRadius: theme.radius.pill,
     opacity: isDisabled ? 0.5 : 1,
     width: fullWidth ? '100%' : undefined,
+    // A pointer hovering a button should get an answer before it clicks. One
+    // pixel of lift is enough to read as "live" without becoming an animation
+    // the eye has to wait out. Never fires on a touch device.
+    transform: lifted ? [{ translateY: -1 }] : undefined,
   };
 
   const content =
@@ -54,6 +61,7 @@ export function Button({
   return (
     <Pressable
       {...rest}
+      {...hoverProps}
       disabled={isDisabled}
       style={({ pressed }) => [shell, pressed && !isDisabled && styles.pressed, style]}
     >
@@ -67,6 +75,7 @@ export function Button({
             {
               shadowColor: theme.colors.accentGlow,
               borderRadius: theme.radius.pill,
+              shadowOpacity: lifted ? 0.75 : 0.55,
             },
           ]}
         >
@@ -79,8 +88,20 @@ export function Button({
             {
               borderRadius: theme.radius.pill,
               borderWidth: 1,
-              borderColor: variant === 'secondary' ? theme.colors.accentBorder : theme.colors.border,
-              backgroundColor: variant === 'secondary' ? theme.colors.accentSoft : 'transparent',
+              borderColor:
+                variant === 'secondary'
+                  ? theme.colors.accentBorder
+                  : lifted
+                    ? theme.colors.borderStrong
+                    : theme.colors.border,
+              // An outlined button has no fill to brighten, so hover fills it
+              // instead — the border alone is too quiet to register.
+              backgroundColor:
+                variant === 'secondary'
+                  ? theme.colors.accentSoft
+                  : lifted
+                    ? theme.colors.surface
+                    : 'transparent',
             },
           ]}
         >

@@ -1,75 +1,87 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { AppState } from 'react-native';
-import { ISODate, Progress, mock, todayISO } from '@/data';
+import { CheckInResponse, CheckInSummary, checkInApi, messageFor } from '@/api';
 import { useAuth } from '@/auth/AuthProvider';
-
-/** Keyed per user: signing out and back in as someone else must not leak a log. */
-const storageKey = (userId: string) => `app.checkins.${userId}`;
+import { CheckIn, ISODate, todayISO } from '@/data';
 
 export type CheckInInput = {
   pain_score: number;
   pain_location: string;
+  /** Defaults to today. */
+  date?: ISODate;
 };
+
+export type Result = { ok: true } | { ok: false; error: string };
 
 type CheckInContextValue = {
   /** Every check-in, oldest first. */
-  checkIns: Progress[];
-  todayCheckIn: Progress | null;
+  checkIns: CheckIn[];
+  /** Streaks, totals and adherence, computed by the server. */
+  summary: CheckInSummary | null;
+  todayCheckIn: CheckIn | null;
   hasCheckedInToday: boolean;
   todayIso: ISODate;
-  saveCheckIn: (input: CheckInInput) => void;
-  /** Most recent `count` check-ins, oldest first — what the trend draws. */
-  recent: (count: number) => Progress[];
+  loading: boolean;
+  error: string | null;
+  saveCheckIn: (input: CheckInInput) => Promise<Result>;
+  /** Most recent `count` scored check-ins, oldest first — what the trend draws. */
+  recent: (count: number) => CheckIn[];
   averageScore: (count: number) => number | null;
+  reload: () => Promise<void>;
 };
 
 const CheckInContext = createContext<CheckInContextValue | null>(null);
 
-const byDate = (a: Progress, b: Progress) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+const byDate = (a: CheckIn, b: CheckIn) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+
+function toCheckIn(row: CheckInResponse): CheckIn {
+  return {
+    id: row.id,
+    date: row.local_date,
+    checked_in: row.checked_in,
+    pain_score: row.pain_score,
+    pain_location: row.pain_location,
+  };
+}
 
 /**
- * The daily pain log. Seeded with the mock week so the trend has a shape on
- * first run; everything the user adds is stored locally for V1.
+ * The daily pain log, read from and written to the API. Writing goes through
+ * PUT on the day, so logging twice revises the day rather than stacking a
+ * second point on the same date — and the physio sees it the moment it lands.
  */
 export function CheckInProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const isMember = user?.role === 'member';
   const userId = user?.id ?? null;
 
-  const [checkIns, setCheckIns] = useState<Progress[]>([]);
+  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [summary, setSummary] = useState<CheckInSummary | null>(null);
   const [todayIso, setTodayIso] = useState<ISODate>(todayISO);
-  const [hydrated, setHydrated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!userId) {
+  const reload = useCallback(async () => {
+    if (!isMember) {
       setCheckIns([]);
-      setHydrated(true);
+      setSummary(null);
       return;
     }
+    setError(null);
+    try {
+      const [rows, nextSummary] = await Promise.all([checkInApi.range(), checkInApi.summary()]);
+      setCheckIns(rows.map(toCheckIn).sort(byDate));
+      setSummary(nextSummary);
+    } catch (err) {
+      setError(messageFor(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [isMember]);
 
-    setHydrated(false);
-    AsyncStorage.getItem(storageKey(userId))
-      .then((stored) => {
-        if (cancelled) return;
-        setCheckIns(
-          ((stored ? JSON.parse(stored) : (mock.progressByUser[userId] ?? [])) as Progress[]).sort(
-            byDate
-          )
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setCheckIns([]);
-      })
-      .finally(() => {
-        if (!cancelled) setHydrated(true);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [userId]);
+  useEffect(() => {
+    if (isMember) setLoading(true);
+    void reload();
+  }, [reload, isMember, userId]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
@@ -79,34 +91,25 @@ export function CheckInProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveCheckIn = useCallback(
-    ({ pain_score, pain_location }: CheckInInput) => {
-      if (!userId) return;
-
-      setCheckIns((prev) => {
-        const existing = prev.find((entry) => entry.date === todayIso);
-        const location = pain_location.trim() || null;
-
-        // One check-in per day: logging again updates the day rather than
-        // stacking a second point onto the same date.
-        const entry: Progress = existing
-          ? { ...existing, checked_in: true, pain_score, pain_location: location }
-          : {
-              id: `pr_${todayIso}`,
-              user_id: userId,
-              date: todayIso,
-              checked_in: true,
-              pain_score,
-              pain_location: location,
-              deposits_made: 1,
-              workouts_completed: 0,
-            };
-
-        const next = [...prev.filter((e) => e.date !== todayIso), entry].sort(byDate);
-        AsyncStorage.setItem(storageKey(userId), JSON.stringify(next));
-        return next;
-      });
+    async ({ pain_score, pain_location, date }: CheckInInput): Promise<Result> => {
+      const day = date ?? todayIso;
+      try {
+        const saved = toCheckIn(
+          await checkInApi.put(day, {
+            checked_in: true,
+            pain_score,
+            pain_location: pain_location.trim() || null,
+          })
+        );
+        setCheckIns((prev) => [...prev.filter((e) => e.date !== day), saved].sort(byDate));
+        // The summary is server arithmetic; re-read rather than guess at the streak.
+        checkInApi.summary().then(setSummary).catch(() => {});
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: messageFor(err) };
+      }
     },
-    [todayIso, userId]
+    [todayIso]
   );
 
   const value = useMemo<CheckInContextValue>(() => {
@@ -114,9 +117,12 @@ export function CheckInProvider({ children }: { children: React.ReactNode }) {
 
     return {
       checkIns,
+      summary,
       todayCheckIn: checkIns.find((entry) => entry.date === todayIso) ?? null,
       hasCheckedInToday: checkIns.some((entry) => entry.date === todayIso && entry.checked_in),
       todayIso,
+      loading,
+      error,
       saveCheckIn,
       recent: (count: number) => scored.slice(-count),
       averageScore: (count: number) => {
@@ -125,10 +131,9 @@ export function CheckInProvider({ children }: { children: React.ReactNode }) {
         const total = window.reduce((sum, entry) => sum + (entry.pain_score ?? 0), 0);
         return total / window.length;
       },
+      reload,
     };
-  }, [checkIns, todayIso, saveCheckIn]);
-
-  if (!hydrated) return null;
+  }, [checkIns, summary, todayIso, loading, error, saveCheckIn, reload]);
 
   return <CheckInContext.Provider value={value}>{children}</CheckInContext.Provider>;
 }

@@ -29,6 +29,8 @@ export const endpoints = {
     root: '/me',
     /** PUT — set the program this member trains on. */
     program: '/me/program',
+    /** PUT — change your own password; returns a fresh token pair. */
+    password: '/me/password',
   },
 
   content: {
@@ -38,13 +40,15 @@ export const endpoints = {
     programContent: (programId: string) => `/programs/${programId}/content`,
     /** GET — one exercise, for the guide screen. */
     exercise: (exerciseId: string) => `/exercises/${exerciseId}`,
+    /** GET — the routines a coach can drop onto a day as a starting point. */
+    routines: '/routines',
     /** GET — one lesson. */
     learn: (contentId: string) => `/learn/${contentId}`,
   },
 
-  schedule: {
-    /** GET the week. PUT replaces it whole. */
-    root: '/schedule',
+  plan: {
+    /** GET — the signed-in member's week, as their physio wrote it. */
+    root: '/plan',
   },
 
   sessions: {
@@ -82,6 +86,8 @@ export const endpoints = {
     users: '/admin/users',
     /** PATCH — active / invited / suspended. */
     userStatus: (userId: string) => `/admin/users/${userId}/status`,
+    /** PUT — set a new temporary password; ends every session the account had. */
+    userPassword: (userId: string) => `/admin/users/${userId}/password`,
 
     /** GET — the roster, with adherence and attention flags. */
     clients: '/admin/clients',
@@ -92,6 +98,8 @@ export const endpoints = {
     /** DELETE — withdraw a prescription. */
     clientAssignment: (userId: string, assignmentId: string) =>
       `/admin/clients/${userId}/assigned-exercises/${assignmentId}`,
+    /** GET the client's week. PUT replaces it whole. */
+    clientPlan: (userId: string) => `/admin/clients/${userId}/plan`,
     /** PUT — a coach override of a client's progression. */
     clientProgression: (userId: string) => `/admin/clients/${userId}/progression`,
   },

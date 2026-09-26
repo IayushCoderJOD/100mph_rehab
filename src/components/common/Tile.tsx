@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useTheme } from '@/theme';
+import { useHover } from '@/hooks/useHover';
 import { Text } from '../ui/Text';
 
 type TileProps = {
@@ -13,15 +14,19 @@ type TileProps = {
 
 export function Tile({ icon, title, subtitle, onPress, style }: TileProps) {
   const { theme } = useTheme();
+  const { hovered, hoverProps } = useHover();
 
   return (
     <Pressable
+      {...hoverProps}
       onPress={onPress}
       style={({ pressed }) => [
         styles.tile,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.border,
+          // A tile is a big quiet rectangle; on hover it has to declare itself
+          // as a target, so the surface lifts a step and the border firms up.
+          backgroundColor: hovered ? theme.colors.surfaceRaised : theme.colors.surface,
+          borderColor: hovered ? theme.colors.borderStrong : theme.colors.border,
           borderRadius: theme.radius.lg,
           opacity: pressed ? 0.85 : 1,
         },

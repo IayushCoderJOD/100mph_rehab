@@ -1,43 +1,90 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '@/auth/AuthProvider';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { RequirePermission } from '@/access';
+import { suggestedPrescription } from '@/admin/planDraft';
+import { useClientDetail } from '@/admin';
 import { PageHeader } from '@/components/common';
 import { TextField } from '@/components/form';
+import { ExercisePicker } from '@/components/plan';
 import { Button, Card, Screen, Text } from '@/components/ui';
-import { Exercise } from '@/data';
+import { Exercise, mock } from '@/data';
 import { useDirectory } from '@/directory/DirectoryProvider';
-import { getProgramData } from '@/program/programData';
 import { useTheme } from '@/theme';
+import { fontFamily } from '@/theme/typography';
 
-export default function AssignExerciseScreen() {
+type Line = { exercise: Exercise; prescription: string };
+
+function AssignForm() {
   const router = useRouter();
   const { theme } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { user } = useAuth();
-  const { userById, assignmentsFor, assignExercise } = useDirectory();
+  const { userById, assignExercises } = useDirectory();
+  const { data: detail } = useClientDetail(id ?? null);
 
-  const client = userById(id ?? null);
-  const programData = useMemo(
-    () => getProgramData(client?.active_program_id ?? null),
-    [client?.active_program_id]
-  );
+  const client = userById(id ?? null) ?? detail?.user ?? null;
 
-  const [selected, setSelected] = useState<Exercise | null>(null);
-  const [prescription, setPrescription] = useState('');
+  const [lines, setLines] = useState<Line[]>([]);
   const [note, setNote] = useState('');
+  const [picking, setPicking] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Anything already prescribed is off the list, so a coach cannot create a
-  // duplicate and then wonder why the client sees one of them.
+  // Anything already prescribed is locked in the picker, so a coach cannot
+  // create a duplicate and then wonder why the client sees one of them.
   const alreadyAssigned = useMemo(
-    () => new Set(client ? assignmentsFor(client.id).map((a) => a.exercise_id) : []),
-    [client, assignmentsFor]
+    () => (detail?.assigned_exercises ?? []).map((row) => row.exercise_id),
+    [detail]
+  );
+  const locked = useMemo(
+    () => [...alreadyAssigned, ...lines.map((line) => line.exercise.id)],
+    [alreadyAssigned, lines]
   );
 
-  const available = programData.exercises.filter((e) => !alreadyAssigned.has(e.id));
-  const valid = !!selected && prescription.trim().length > 0;
+  const valid = lines.length > 0 && lines.every((line) => line.prescription.trim().length > 0);
+
+  const addSelected = (ids: string[]) => {
+    const added = ids
+      .map((exerciseId) => mock.exercises.find((e) => e.id === exerciseId))
+      .filter((e): e is Exercise => !!e)
+      .map((exercise) => ({
+        exercise,
+        prescription: suggestedPrescription(exercise.id, mock.routines),
+      }));
+    setLines((prev) => [...prev, ...added]);
+    setPicking(false);
+  };
+
+  const submit = async () => {
+    setError(null);
+    if (!client || !valid || submitting) return;
+
+    setSubmitting(true);
+    const result = await assignExercises(
+      client.id,
+      lines.map((line) => ({ exercise_id: line.exercise.id, prescription: line.prescription })),
+      note
+    );
+    setSubmitting(false);
+
+    if (result.failed.length === 0) {
+      router.back();
+      return;
+    }
+
+    // Keep only what did not land, with the reason, so the coach can fix and resend.
+    const failedIds = new Set(result.failed.map((f) => f.exercise_id));
+    setLines((prev) => prev.filter((line) => failedIds.has(line.exercise.id)));
+    const names = result.failed
+      .map((f) => mock.exercises.find((e) => e.id === f.exercise_id)?.name ?? f.exercise_id)
+      .join(', ');
+    setError(
+      result.created.length > 0
+        ? `${result.created.length} assigned. Could not assign ${names}: ${result.failed[0].error}`
+        : `Could not assign ${names}: ${result.failed[0].error}`
+    );
+  };
 
   if (!client) {
     return (
@@ -47,108 +94,88 @@ export default function AssignExerciseScreen() {
     );
   }
 
-  const submit = () => {
-    if (!valid || !user) return;
-
-    const result = assignExercise({
-      user_id: client.id,
-      exercise_id: selected.id,
-      assigned_by: user.id,
-      prescription,
-      note,
-    });
-
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    router.back();
-  };
-
   return (
     <Screen scroll keyboardAvoiding>
       <PageHeader
-        title="Assign Exercise"
-        subtitle={`Prescribed to ${client.full_name} on top of their program.`}
+        title="Assign Exercises"
+        subtitle={`For ${client.full_name}, on top of their week.`}
         onBack={() => router.back()}
       />
 
-      <Text variant="heading" style={styles.sectionTitle}>
-        1 · Pick the exercise
-      </Text>
+      <Button label="Choose exercises" onPress={() => setPicking(true)} style={styles.choose} />
 
-      {available.length === 0 ? (
-        <Card style={styles.empty}>
+      {lines.length === 0 ? (
+        <Card variant="alt" style={styles.empty}>
           <Text variant="caption" color="textSecondary" align="center">
-            Every exercise in this program is already assigned to {client.full_name}.
+            Pick one or several from the catalogue. Each gets its own prescription below.
           </Text>
         </Card>
       ) : (
-        <View style={styles.options}>
-          {available.map((exercise) => {
-            const active = selected?.id === exercise.id;
-
-            return (
-              <Pressable
-                key={exercise.id}
-                onPress={() => setSelected(exercise)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active }}
-                style={({ pressed }) => [
-                  styles.option,
+        <View style={styles.lines}>
+          {lines.map((line, index) => (
+            <View
+              key={line.exercise.id}
+              style={[
+                styles.line,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: line.prescription.trim() ? theme.colors.border : theme.colors.accentBorder,
+                  borderRadius: theme.radius.md,
+                },
+              ]}
+            >
+              <View style={styles.lineTop}>
+                <View style={styles.lineBody}>
+                  <Text variant="bodyStrong" numberOfLines={1}>
+                    {line.exercise.name}
+                  </Text>
+                  <Text variant="caption" color="textSecondary" numberOfLines={1}>
+                    {line.exercise.focus}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setLines((prev) => prev.filter((_, i) => i !== index))}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Remove ${line.exercise.name}`}
+                >
+                  <Ionicons name="close-circle-outline" size={22} color={theme.colors.textMuted} />
+                </Pressable>
+              </View>
+              <View
+                style={[
+                  styles.prescription,
                   {
-                    backgroundColor: active ? theme.colors.accentSoft : theme.colors.surface,
-                    borderColor: active ? theme.colors.accentBorder : theme.colors.border,
-                    borderRadius: theme.radius.md,
-                    opacity: pressed ? 0.85 : 1,
+                    backgroundColor: theme.colors.inputBackground,
+                    borderColor: theme.colors.border,
+                    borderRadius: theme.radius.sm,
                   },
                 ]}
               >
-                <View
-                  style={[
-                    styles.radio,
-                    {
-                      borderColor: active ? theme.colors.accent : theme.colors.borderStrong,
-                      backgroundColor: active ? theme.colors.accent : 'transparent',
-                    },
-                  ]}
-                >
-                  {active ? (
-                    <Ionicons name="checkmark-sharp" size={13} color={theme.colors.onAccent} />
-                  ) : null}
-                </View>
-
-                <View style={styles.optionBody}>
-                  <Text variant="bodyStrong">{exercise.name}</Text>
-                  <Text variant="caption" color="textSecondary">
-                    {exercise.focus}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
+                <TextInput
+                  value={line.prescription}
+                  onChangeText={(text) =>
+                    setLines((prev) => prev.map((l, i) => (i === index ? { ...l, prescription: text } : l)))
+                  }
+                  placeholder="Prescription, e.g. 2 x 90s holds · Both sides · Every evening"
+                  placeholderTextColor={theme.colors.textMuted}
+                  style={[styles.prescriptionInput, { color: theme.colors.textPrimary }]}
+                  maxLength={200}
+                />
+              </View>
+            </View>
+          ))}
         </View>
       )}
 
-      <Text variant="heading" style={styles.sectionTitle}>
-        2 · What are you asking for?
-      </Text>
-      <TextField
-        label="PRESCRIPTION"
-        value={prescription}
-        onChangeText={setPrescription}
-        placeholder="e.g. 2 x 90s holds · Both sides · Every evening"
-        autoCapitalize="sentences"
-      />
-
-      <View style={styles.field}>
+      <View style={styles.note}>
         <TextField
           label="NOTE TO CLIENT (OPTIONAL)"
           value={note}
           onChangeText={setNote}
-          placeholder="Why you are adding this, and what to watch for."
-          autoCapitalize="sentences"
+          placeholder="Why you have added these, and anything to watch for. Shown with every exercise above."
           multiline
+          autoCapitalize="sentences"
           maxLength={400}
         />
       </View>
@@ -159,26 +186,55 @@ export default function AssignExerciseScreen() {
         </Text>
       ) : null}
 
-      <Button label="Assign Exercise" disabled={!valid} onPress={submit} style={styles.submit} />
+      <Button
+        label={
+          lines.length === 0
+            ? 'Assign'
+            : `Assign ${lines.length} exercise${lines.length === 1 ? '' : 's'}`
+        }
+        disabled={!valid}
+        loading={submitting}
+        onPress={() => void submit()}
+        style={styles.submit}
+      />
+      <Text variant="caption" color="textMuted" align="center" style={styles.footnote}>
+        {lines.some((line) => !line.prescription.trim())
+          ? 'Every exercise needs a prescription before you can assign.'
+          : 'The client sees these under For You, with your note.'}
+      </Text>
+
+      <ExercisePicker
+        visible={picking}
+        exercises={mock.exercises}
+        lockedIds={locked}
+        title="Choose exercises"
+        onClose={() => setPicking(false)}
+        onConfirm={addSelected}
+      />
     </Screen>
   );
 }
 
+/** Prescribing is a coach capability, gated the same way the button is. */
+export default function AssignScreen() {
+  return (
+    <RequirePermission permission="clients.assign_exercise" fallback="/(tabs)/clients">
+      <AssignForm />
+    </RequirePermission>
+  );
+}
+
 const styles = StyleSheet.create({
-  sectionTitle: { marginTop: 32, marginBottom: 14 },
-  options: { gap: 10 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, padding: 14 },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionBody: { flex: 1, gap: 2 },
-  field: { marginTop: 18 },
-  error: { marginTop: 14 },
-  submit: { marginTop: 28 },
-  empty: { paddingVertical: 24 },
+  choose: { marginTop: 24 },
+  empty: { marginTop: 14, paddingVertical: 24 },
+  lines: { gap: 10, marginTop: 14 },
+  line: { borderWidth: 1, padding: 12, gap: 10 },
+  lineTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  lineBody: { flex: 1, gap: 2 },
+  prescription: { borderWidth: 1, paddingHorizontal: 12, height: 44, justifyContent: 'center' },
+  prescriptionInput: { fontFamily: fontFamily.medium, fontSize: 14, height: '100%' },
+  note: { marginTop: 24 },
+  error: { marginTop: 16 },
+  submit: { marginTop: 24 },
+  footnote: { marginTop: 12, paddingHorizontal: 16 },
 });

@@ -17,8 +17,12 @@ export type ApiErrorCode =
   | 'email_already_exists'
   | 'phone_already_exists'
   | 'password_too_weak'
+  | 'current_password_incorrect'
   | 'reset_token_invalid'
   | 'program_not_found'
+  | 'exercise_not_found'
+  | 'schedule_invalid_day'
+  | 'already_assigned'
   | 'validation_failed'
   | 'malformed_request'
   | 'forbidden'
@@ -60,9 +64,13 @@ const MESSAGES: Record<string, string> = {
   too_many_attempts: 'Too many attempts. Please wait a few minutes and try again.',
   email_already_exists: 'An account with that email already exists.',
   phone_already_exists: 'An account with that phone number already exists.',
-  password_too_weak: 'That password is too short.',
+  password_too_weak: 'Passwords need at least 8 characters.',
+  current_password_incorrect: 'Your current password is not right.',
   reset_token_invalid: 'That reset link is invalid or has expired.',
   program_not_found: 'That program no longer exists.',
+  exercise_not_found: 'One of those exercises is no longer in the catalogue.',
+  schedule_invalid_day: 'One of the days in that week is not valid.',
+  already_assigned: 'That exercise is already assigned to this client.',
   validation_failed: 'Please check the details and try again.',
   forbidden: 'You do not have access to that.',
   not_found: 'We could not find that.',

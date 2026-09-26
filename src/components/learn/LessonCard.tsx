@@ -1,5 +1,6 @@
 import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { LearnContent } from '@/data';
+import { useHover } from '@/hooks/useHover';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 import { MediaThumb } from './MediaThumb';
@@ -21,10 +22,12 @@ type LessonCardProps = {
  */
 export function LessonCard({ content, onPress, style }: LessonCardProps) {
   const { theme } = useTheme();
+  const { hovered, hoverProps } = useHover();
   const isMini = content.kind === 'mini_lesson';
 
   return (
     <Pressable
+      {...hoverProps}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${content.title}. ${content.subtitle}`}
@@ -32,8 +35,8 @@ export function LessonCard({ content, onPress, style }: LessonCardProps) {
         styles.card,
         {
           width: isMini ? MINI_CARD_WIDTH : LONGFORM_CARD_WIDTH,
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.border,
+          backgroundColor: hovered ? theme.colors.surfaceRaised : theme.colors.surface,
+          borderColor: hovered ? theme.colors.borderStrong : theme.colors.border,
           borderRadius: theme.radius.lg,
           opacity: pressed ? 0.85 : 1,
         },

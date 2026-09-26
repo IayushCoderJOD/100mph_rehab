@@ -23,7 +23,15 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "static",
+      "name": "100mph",
+      "shortName": "100mph",
+      "description": "Your rehab training plan, written by your physio.",
+      "lang": "en",
+      "themeColor": "#0B0B0C",
+      "backgroundColor": "#0B0B0C",
+      "display": "standalone"
     },
     "plugins": [
       "expo-router",

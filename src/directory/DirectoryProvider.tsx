@@ -1,202 +1,227 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { CreateUserPayload, adminApi, messageFor } from '@/api';
+import {
+  AssignedExerciseResponse,
+  ClientSummary,
+  CreateUserPayload,
+  UpdatePlanPayload,
+  WeeklyPlanResponse,
+  adminApi,
+  messageFor,
+} from '@/api';
 import { useAuth } from '@/auth/AuthProvider';
-import { AssignedExercise, User, UserRole, UserStatus, mock } from '@/data';
-
-const ASSIGNMENTS_KEY = 'app.directory.assignments';
+import { User, UserRole, UserStatus } from '@/data';
 
 export type CreateUserInput = {
   full_name: string;
   email: string;
   phone: string;
   password: string;
-  program_id: string;
+  /** Optional focus area — the week is what they train on. */
+  program_id: string | null;
   role: UserRole;
 };
 
-export type AssignExerciseInput = {
-  user_id: string;
+/** One prescription in a batch. */
+export type AssignLine = {
   exercise_id: string;
-  assigned_by: string;
   prescription: string;
-  note: string;
 };
 
 /** Mutations report failure as a message rather than throwing, so forms can render it. */
-export type Result = { ok: true } | { ok: false; error: string };
+export type Result<T = void> = { ok: true; value: T } | { ok: false; error: string };
+
+/** A batch write: what landed, and what did not, so a form can say exactly that. */
+export type BatchResult = {
+  created: AssignedExerciseResponse[];
+  failed: { exercise_id: string; error: string }[];
+};
 
 type DirectoryContextValue = {
-  users: User[];
-  assignments: AssignedExercise[];
+  /** The roster with the server's read of each client — adherence, pain, attention. */
+  roster: ClientSummary[];
   /** True while the roster is being fetched, for the screens that show it. */
   loading: boolean;
+  error: string | null;
   userById: (id: string | null) => User | null;
-  assignmentsFor: (userId: string) => AssignedExercise[];
-  createUser: (input: CreateUserInput) => Promise<Result>;
-  setUserStatus: (userId: string, status: UserStatus) => Promise<Result>;
-  assignExercise: (input: AssignExerciseInput) => Result;
-  removeAssignment: (assignmentId: string) => void;
+  summaryById: (id: string | null) => ClientSummary | null;
+  createUser: (input: CreateUserInput) => Promise<Result<User>>;
+  setUserStatus: (userId: string, status: UserStatus) => Promise<Result<User>>;
+  assignExercises: (userId: string, lines: AssignLine[], note: string) => Promise<BatchResult>;
+  removeAssignment: (userId: string, assignmentId: string) => Promise<Result>;
+  replacePlan: (userId: string, payload: UpdatePlanPayload) => Promise<Result<WeeklyPlanResponse>>;
   reload: () => Promise<void>;
 };
 
 const DirectoryContext = createContext<DirectoryContextValue | null>(null);
 
 /**
- * The roster, backed by the API.
+ * The practice's roster and the writes a coach makes against it, all through
+ * the API. Nothing here is cached on the device: a prescription written on
+ * the physio's phone has to be on the member's phone by the time they look,
+ * and the only place both of them read from is the server.
  *
- * `/admin/users` is admin-only, so this only fetches for staff; a member's
- * screens never ask for the list. It sits *below* AuthProvider now — the
- * requests it makes need a token, and the mock credential check it used to own
- * has moved to the server where it belongs.
- *
- * Assignments are still local. The prescribe-an-exercise endpoints are Phase 7
- * on the backend and do not exist yet, so that slice keeps working exactly as
- * it did rather than being half-migrated.
+ * `/admin/*` is admin-only, so this only fetches for staff; a member's screens
+ * never ask for the list.
  */
 export function DirectoryProvider({ children }: { children: React.ReactNode }) {
   const { user: currentUser } = useAuth();
   const isStaff = currentUser?.role === 'admin';
 
-  const [users, setUsers] = useState<User[]>([]);
-  const [assignments, setAssignments] = useState<AssignedExercise[]>(mock.assignedExercises);
+  const [roster, setRoster] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!isStaff) {
-      setUsers([]);
+      setRoster([]);
       return;
     }
-    setLoading(true);
+    setError(null);
     try {
-      setUsers(await adminApi.listUsers());
-    } catch {
+      setRoster(await adminApi.roster());
+    } catch (err) {
       // A failed roster read leaves the previous list rather than blanking the
       // screen; the staff member can pull again.
+      setError(messageFor(err));
     } finally {
       setLoading(false);
     }
   }, [isStaff]);
 
   useEffect(() => {
+    if (isStaff) setLoading(true);
     void reload();
-  }, [reload]);
+  }, [reload, isStaff]);
 
-  useEffect(() => {
-    AsyncStorage.getItem(ASSIGNMENTS_KEY)
-      .then((stored) => {
-        if (stored) setAssignments(JSON.parse(stored) as AssignedExercise[]);
-      })
-      .catch(() => {
-        // A corrupt cache should not break the screen — keep the seed.
-      });
-  }, []);
-
-  const persistAssignments = useCallback((next: AssignedExercise[]) => {
-    setAssignments(next);
-    AsyncStorage.setItem(ASSIGNMENTS_KEY, JSON.stringify(next));
+  /** Swaps one client's server row after a write, so the list is right without a refetch. */
+  const patchUser = useCallback((updated: User) => {
+    setRoster((current) =>
+      current.map((row) => (row.user.id === updated.id ? { ...row, user: updated } : row))
+    );
   }, []);
 
   const createUser = useCallback(
-    async (input: CreateUserInput): Promise<Result> => {
+    async (input: CreateUserInput): Promise<Result<User>> => {
       const payload: CreateUserPayload = {
         full_name: input.full_name.trim(),
         email: input.email.trim(),
         password: input.password,
-        program_id: input.program_id,
         role: input.role,
       };
-
+      if (input.program_id) payload.program_id = input.program_id;
       const phone = input.phone.trim();
       if (phone) payload.phone = phone;
 
       try {
         const created = await adminApi.createUser(payload);
-        setUsers((current) => [...current, created]);
-        return { ok: true };
+        // The summary columns are the server's to compute; pull the row properly.
+        void reload();
+        return { ok: true, value: created };
       } catch (err) {
         return { ok: false, error: messageFor(err) };
       }
     },
-    []
+    [reload]
   );
 
   const setUserStatus = useCallback(
-    async (userId: string, status: UserStatus): Promise<Result> => {
+    async (userId: string, status: UserStatus): Promise<Result<User>> => {
       try {
         const updated = await adminApi.setUserStatus(userId, status);
-        setUsers((current) => current.map((u) => (u.id === userId ? updated : u)));
-        return { ok: true };
+        patchUser(updated);
+        return { ok: true, value: updated };
       } catch (err) {
         return { ok: false, error: messageFor(err) };
       }
     },
-    []
+    [patchUser]
   );
 
-  const assignExercise = useCallback(
-    (input: AssignExerciseInput): Result => {
-      const existing = assignments.filter((a) => a.user_id === input.user_id && a.is_active);
-      if (existing.some((a) => a.exercise_id === input.exercise_id)) {
-        return { ok: false, error: 'That exercise is already assigned to this client.' };
+  const assignExercises = useCallback(
+    async (userId: string, lines: AssignLine[], note: string): Promise<BatchResult> => {
+      const created: AssignedExerciseResponse[] = [];
+      const failed: BatchResult['failed'] = [];
+      const trimmedNote = note.trim();
+
+      // One row at a time, in the order the coach listed them, so sort_order
+      // on the server matches what they saw. A failure on one line does not
+      // stop the rest — the form reports exactly which ones did not land.
+      for (const line of lines) {
+        try {
+          created.push(
+            await adminApi.assignExercise(userId, {
+              exercise_id: line.exercise_id,
+              prescription: line.prescription.trim(),
+              ...(trimmedNote ? { note: trimmedNote } : {}),
+            })
+          );
+        } catch (err) {
+          failed.push({ exercise_id: line.exercise_id, error: messageFor(err) });
+        }
       }
 
-      const created: AssignedExercise = {
-        id: `ae_${Date.now()}`,
-        user_id: input.user_id,
-        exercise_id: input.exercise_id,
-        assigned_by: input.assigned_by,
-        prescription: input.prescription.trim(),
-        note: input.note.trim() || null,
-        sort_order: existing.length + 1,
-        is_active: true,
-        created_at: new Date().toISOString(),
-      };
-
-      persistAssignments([...assignments, created]);
-      return { ok: true };
+      if (created.length > 0) void reload();
+      return { created, failed };
     },
-    [assignments, persistAssignments]
+    [reload]
   );
 
   const removeAssignment = useCallback(
-    (assignmentId: string) => {
-      persistAssignments(assignments.filter((a) => a.id !== assignmentId));
+    async (userId: string, assignmentId: string): Promise<Result> => {
+      try {
+        await adminApi.withdrawAssignment(userId, assignmentId);
+        void reload();
+        return { ok: true, value: undefined };
+      } catch (err) {
+        return { ok: false, error: messageFor(err) };
+      }
     },
-    [assignments, persistAssignments]
+    [reload]
+  );
+
+  const replacePlan = useCallback(
+    async (userId: string, payload: UpdatePlanPayload): Promise<Result<WeeklyPlanResponse>> => {
+      try {
+        const saved = await adminApi.replacePlan(userId, payload);
+        void reload();
+        return { ok: true, value: saved };
+      } catch (err) {
+        return { ok: false, error: messageFor(err) };
+      }
+    },
+    [reload]
   );
 
   const value = useMemo<DirectoryContextValue>(
     () => ({
-      users,
-      assignments,
+      roster,
       loading,
+      error,
       userById: (id) => {
         if (!id) return null;
         // The signed-in user is known from the session even when the roster is
         // not loaded — which is the case for every member.
         if (currentUser && currentUser.id === id) return currentUser;
-        return users.find((u) => u.id === id) ?? null;
+        return roster.find((row) => row.user.id === id)?.user ?? null;
       },
-      assignmentsFor: (userId) =>
-        assignments
-          .filter((a) => a.user_id === userId && a.is_active)
-          .sort((a, b) => a.sort_order - b.sort_order),
+      summaryById: (id) => (id ? (roster.find((row) => row.user.id === id) ?? null) : null),
       createUser,
       setUserStatus,
-      assignExercise,
+      assignExercises,
       removeAssignment,
+      replacePlan,
       reload,
     }),
     [
-      users,
-      assignments,
+      roster,
       loading,
+      error,
       currentUser,
       createUser,
       setUserStatus,
-      assignExercise,
+      assignExercises,
       removeAssignment,
+      replacePlan,
       reload,
     ]
   );

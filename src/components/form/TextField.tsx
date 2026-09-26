@@ -44,6 +44,7 @@ export function TextField({
 }: TextFieldProps) {
   const { theme } = useTheme();
   const [hidden, setHidden] = useState(secure);
+  const [focused, setFocused] = useState(false);
 
   return (
     <View style={styles.wrap}>
@@ -57,7 +58,12 @@ export function TextField({
           styles.field,
           {
             backgroundColor: theme.colors.inputBackground,
-            borderColor: theme.colors.border,
+            // The focus ring is drawn here, on the rounded wrapper, rather than
+            // left to the browser: react-native-web puts the real <input>
+            // inside this View, so a UA outline lands inset within the border
+            // and squares off its corners. Doing it ourselves also means the
+            // keyboard-focused field looks the same on all three platforms.
+            borderColor: focused ? theme.colors.accentBorder : theme.colors.border,
             borderRadius: theme.radius.md,
           },
           multiline && { height: undefined, minHeight, alignItems: 'flex-start', paddingVertical: 14 },
@@ -81,6 +87,8 @@ export function TextField({
           multiline={multiline}
           maxLength={maxLength}
           textAlignVertical={multiline ? 'top' : 'center'}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
         />
         {secure ? (
           <Pressable onPress={() => setHidden((h) => !h)} hitSlop={10} style={styles.eye}>

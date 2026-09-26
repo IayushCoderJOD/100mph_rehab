@@ -1,13 +1,12 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { IconButton } from '@/components/common';
 import { ExerciseRow } from '@/components/session';
 import { Button, Screen, SegmentedControl, Text } from '@/components/ui';
-import { DAY_LABEL, buildSessionPlan, formatShortDate } from '@/data';
+import { DAY_LABEL, formatShortDate } from '@/data';
 import { useDismiss } from '@/navigation/useDismiss';
-import { useProgramData } from '@/program/programData';
-import { useSchedule } from '@/schedule/ScheduleProvider';
+import { LOG_WINDOW_DAYS, usePlan } from '@/plan/PlanProvider';
 import { useTheme } from '@/theme';
 
 type Mode = 'guided' | 'log';
@@ -16,65 +15,82 @@ export default function SessionScreen() {
   const router = useRouter();
   const dismiss = useDismiss();
   const { theme } = useTheme();
-  const { exercises, sessionExercises } = useProgramData();
-  const { today, todayIso, dayFor, completeSession } = useSchedule();
+  const { todayIso, dayFor, canLog, logSession, unlogSession } = usePlan();
   const { date } = useLocalSearchParams<{ date?: string }>();
 
   // No date param means today, so the home screen's primary action is unchanged.
   const targetIso = date ?? todayIso;
-  const day = dayFor(targetIso) ?? (targetIso === todayIso ? today : null);
+  const day = dayFor(targetIso);
+  const plan = day.plan;
 
-  // Only today can be logged. Any other day is a read-through of the plan:
-  // you can see the work and open every guide, but nothing is recordable.
-  const readOnly = targetIso !== todayIso;
+  const isToday = targetIso === todayIso;
   const isFuture = targetIso > todayIso;
-  const sessionType = day?.session_type ?? null;
-
-  const plan = useMemo(
-    () => buildSessionPlan(sessionType?.id ?? null, exercises, sessionExercises),
-    [sessionType, exercises, sessionExercises]
-  );
+  const alreadyDone = day.status === 'completed';
+  // A past day inside the window can still be logged — people forget, and a
+  // session that happened should count. Only the future is read-only.
+  const loggable = canLog(targetIso) && !alreadyDone;
+  // A tick made by mistake can be taken back inside the same window.
+  const undoable = alreadyDone && canLog(targetIso);
 
   const [mode, setMode] = useState<Mode>('guided');
   const [running, setRunning] = useState(false);
   const [doneIds, setDoneIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const finish = () => {
-    completeSession();
+  const finish = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    const result = await logSession({
+      date: targetIso,
+      completedExerciseIds: running ? doneIds : [],
+      source: running ? 'guided' : 'logged',
+    });
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
     dismiss();
+  };
+
+  const undo = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    const result = await unlogSession(targetIso);
+    setSaving(false);
+    if (!result.ok) setError(result.error);
   };
 
   const toggle = (id: string) =>
     setDoneIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const dayLabel = day
-    ? `${DAY_LABEL[day.day_of_week]} · ${formatShortDate(targetIso)}`
-    : formatShortDate(targetIso);
+  const dayLabel = `${DAY_LABEL[day.day_of_week]} · ${formatShortDate(targetIso)}`;
 
   // Carry the date into the guide so the prescription shown is the one this
   // day asks for, not whatever today happens to prescribe.
   const openGuide = (exerciseId: string) =>
-    router.push(readOnly ? `/exercise/${exerciseId}?date=${targetIso}` : `/exercise/${exerciseId}`);
+    router.push(isToday ? `/exercise/${exerciseId}` : `/exercise/${exerciseId}?date=${targetIso}`);
 
-  if (!sessionType || plan.length === 0) {
+  if (plan.length === 0) {
     return (
       <Screen>
         <View style={styles.header}>
           <View style={styles.headerText}>
-            {readOnly ? (
-              <Text variant="label" color="textSecondary" style={styles.kicker}>
-                {dayLabel}
-              </Text>
-            ) : null}
+            <Text variant="label" color="textSecondary" style={styles.kicker}>
+              {dayLabel}
+            </Text>
           </View>
           <IconButton name="close" variant="plain" onPress={dismiss} />
         </View>
         <View style={styles.empty}>
           <Text variant="title" align="center">
-            {readOnly ? 'Rest day' : 'Nothing scheduled today'}
+            {isToday ? 'Nothing scheduled today' : 'Rest day'}
           </Text>
           <Text variant="subtitle" color="textSecondary" align="center" style={styles.emptyNote}>
-            Rest is part of the plan. Your next session is waiting on the schedule.
+            Rest is part of the plan. Your next session is waiting on the week.
           </Text>
         </View>
       </Screen>
@@ -84,14 +100,14 @@ export default function SessionScreen() {
   const completedCount = doneIds.length;
   const progress = completedCount / plan.length;
 
-  const kicker = readOnly ? dayLabel : running ? 'Session in progress' : "Today's Session";
+  const kicker = running ? 'Session in progress' : isToday ? "Today's Session" : dayLabel;
+  const title = `${DAY_LABEL[day.day_of_week]} Session`;
 
-  const statusNote =
-    day?.status === 'completed'
-      ? 'You completed this session.'
-      : isFuture
-        ? 'This is the plan for that day. You can log it when it comes around.'
-        : 'That day has passed. Sessions can only be logged on the day itself.';
+  const readOnlyNote = alreadyDone
+    ? 'You completed this session.'
+    : isFuture
+      ? 'This is the plan for that day. You can log it when it comes around.'
+      : `Sessions can be logged up to ${LOG_WINDOW_DAYS} days back. That day is further than that.`;
 
   return (
     <Screen>
@@ -100,7 +116,7 @@ export default function SessionScreen() {
           <Text variant="label" color="textSecondary" style={styles.kicker}>
             {kicker}
           </Text>
-          <Text variant="title">{sessionType.name}</Text>
+          <Text variant="title">{title}</Text>
         </View>
         <IconButton name="close" variant="plain" onPress={dismiss} />
       </View>
@@ -121,8 +137,8 @@ export default function SessionScreen() {
         </View>
       ) : (
         <Text variant="caption" color="textSecondary" style={styles.meta}>
-          {plan.length} exercises · about {sessionType.approx_duration_min} minutes ·{' '}
-          {sessionType.is_primary ? 'Main session' : 'Supporting session'}
+          {plan.length} exercise{plan.length === 1 ? '' : 's'}
+          {!isToday && loggable ? ' · not logged yet' : ''}
         </Text>
       )}
 
@@ -145,15 +161,27 @@ export default function SessionScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
-        {readOnly ? (
-          <Text variant="caption" color="textMuted" align="center" style={styles.modeNote}>
-            {statusNote}
+        {error ? (
+          <Text variant="caption" color="danger" align="center">
+            {error}
           </Text>
+        ) : null}
+
+        {!loggable ? (
+          <>
+            <Text variant="caption" color="textMuted" align="center" style={styles.modeNote}>
+              {readOnlyNote}
+            </Text>
+            {undoable ? (
+              <Button label="Undo — Mark as Not Done" variant="ghost" loading={saving} onPress={() => void undo()} />
+            ) : null}
+          </>
         ) : running ? (
           <Button
             label={completedCount === plan.length ? 'Finish Session' : 'Finish Early'}
             variant={completedCount === plan.length ? 'primary' : 'secondary'}
-            onPress={finish}
+            loading={saving}
+            onPress={() => void finish()}
           />
         ) : (
           <>
@@ -168,11 +196,14 @@ export default function SessionScreen() {
             <Text variant="caption" color="textMuted" align="center" style={styles.modeNote}>
               {mode === 'guided'
                 ? 'Work through the list and tick each exercise off as you go.'
-                : 'Already trained? Mark the whole session done in one tap.'}
+                : isToday
+                  ? 'Already trained? Mark the whole session done in one tap.'
+                  : `Did this on ${DAY_LABEL[day.day_of_week]} but forgot to log it? Mark it done now.`}
             </Text>
             <Button
-              label={mode === 'guided' ? 'Start Workout' : 'Log as Complete'}
-              onPress={mode === 'guided' ? () => setRunning(true) : finish}
+              label={mode === 'guided' ? 'Start Workout' : isToday ? 'Log as Complete' : `Log ${DAY_LABEL[day.day_of_week]} as Complete`}
+              loading={saving && mode === 'log'}
+              onPress={mode === 'guided' ? () => setRunning(true) : () => void finish()}
             />
           </>
         )}
