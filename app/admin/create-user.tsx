@@ -10,6 +10,7 @@ import { WeeklyPlanEditor } from '@/components/plan';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { DAY_LABEL, User, UserRole, mock } from '@/data';
 import { useDirectory } from '@/directory/DirectoryProvider';
+import { useExerciseLibrary } from '@/exercises';
 import { useTheme } from '@/theme';
 
 const MIN_PASSWORD = 8;
@@ -37,6 +38,7 @@ function CreateUserForm() {
   const router = useRouter();
   const { theme } = useTheme();
   const { createUser, replacePlan } = useDirectory();
+  const library = useExerciseLibrary();
 
   const [step, setStep] = useState<Step>('details');
   const [fullName, setFullName] = useState('');
@@ -158,7 +160,7 @@ function CreateUserForm() {
         />
 
         <View style={styles.editor}>
-          <WeeklyPlanEditor draft={draft} onChange={setDraft} exercises={mock.exercises} routines={mock.routines} />
+          <WeeklyPlanEditor draft={draft} onChange={setDraft} exercises={library.all} routines={mock.routines} />
         </View>
 
         {error ? (

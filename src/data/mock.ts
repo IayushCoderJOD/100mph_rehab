@@ -846,6 +846,12 @@ const authoredExercises: Exercise[] = [
  */
 export const exercises: Exercise[] = authoredExercises.filter((exercise) => exercise.video_url !== null);
 
+/**
+ * Written up but not filmed yet. Exported to the API as drafts, so an admin can
+ * film one and publish it from the app's exercise library without a deploy.
+ */
+export const draftExercises: Exercise[] = authoredExercises.filter((exercise) => exercise.video_url === null);
+
 const catalogued = new Set(exercises.map((exercise) => exercise.id));
 
 /**

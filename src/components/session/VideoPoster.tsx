@@ -38,6 +38,9 @@ export function VideoPoster({ videoUrl, posterUrl, caption }: VideoPosterProps) 
     // Demos are short and read better on repeat than they do paused on the
     // last frame, so the loop is the resting state rather than a preference.
     instance.loop = true;
+    // Demos are silent by design. The hand-encoded ones have no audio track,
+    // but a video an admin uploads from the app may, so mute it here.
+    instance.muted = true;
   });
 
   useEffect(() => {
@@ -98,9 +101,23 @@ export function VideoPoster({ videoUrl, posterUrl, caption }: VideoPosterProps) 
         />
       </Pressable>
 
-      <Text variant="caption" color="textMuted" align="center" style={styles.caption}>
-        {caption ?? (playable ? 'Watch the demonstration' : 'Demonstration video coming soon')}
-      </Text>
+      {/* Over a poster the caption needs its own backing to stay readable. */}
+      <View
+        style={
+          poster
+            ? [styles.captionPill, { borderRadius: theme.radius.pill }]
+            : undefined
+        }
+      >
+        <Text
+          variant="caption"
+          color={poster ? '#FFFFFF' : 'textMuted'}
+          align="center"
+          style={styles.caption}
+        >
+          {caption ?? (playable ? 'Watch the demonstration' : 'Demonstration video coming soon')}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -126,4 +143,5 @@ const styles = StyleSheet.create({
   // The glyph's own bearing sits it left of centre inside the circle.
   glyph: { marginLeft: 3 },
   caption: { paddingHorizontal: 24 },
+  captionPill: { backgroundColor: 'rgba(0, 0, 0, 0.55)', paddingVertical: 5, paddingHorizontal: 2 },
 });

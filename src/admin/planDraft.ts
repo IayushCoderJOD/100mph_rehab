@@ -70,12 +70,13 @@ export function addExercises(
   draft: PlanDraft,
   day: DayOfWeek,
   exerciseIds: string[],
-  routines: Routine[]
+  routines: Routine[],
+  exercises: Exercise[] = []
 ): PlanDraft {
   const existing = new Set(draft[day].map((line) => line.exercise_id));
   const added = exerciseIds
     .filter((id) => !existing.has(id))
-    .map((id) => ({ exercise_id: id, prescription: suggestedPrescription(id, routines) }));
+    .map((id) => ({ exercise_id: id, prescription: suggestedPrescription(id, routines, exercises) }));
   return { ...draft, [day]: [...draft[day], ...added] };
 }
 
@@ -125,10 +126,12 @@ export function copyDay(draft: PlanDraft, from: DayOfWeek, to: DayOfWeek[]): Pla
 
 /**
  * A prescription to start from when an exercise is added by hand: the sets
- * authored for that movement, else whatever a routine says about it, else
- * blank for the coach to fill.
+ * the library holds for that movement (an admin can edit them), else the ones
+ * authored in the app, else whatever a routine says, else blank to fill in.
  */
-export function suggestedPrescription(exerciseId: string, routines: Routine[]): string {
+export function suggestedPrescription(exerciseId: string, routines: Routine[], exercises: Exercise[] = []): string {
+  const fromLibrary = exercises.find((exercise) => exercise.id === exerciseId)?.suggested_sets;
+  if (fromLibrary) return fromLibrary;
   const authored = mock.suggestedSets[exerciseId];
   if (authored) return authored;
   for (const routine of routines) {

@@ -23,6 +23,9 @@ export type ApiErrorCode =
   | 'exercise_not_found'
   | 'schedule_invalid_day'
   | 'already_assigned'
+  | 'unsupported_media'
+  | 'upload_not_found'
+  | 'media_not_configured'
   | 'validation_failed'
   | 'malformed_request'
   | 'forbidden'
@@ -71,6 +74,9 @@ const MESSAGES: Record<string, string> = {
   exercise_not_found: 'One of those exercises is no longer in the catalogue.',
   schedule_invalid_day: 'One of the days in that week is not valid.',
   already_assigned: 'That exercise is already assigned to this client.',
+  unsupported_media: 'That file cannot be used. Upload an MP4 video of up to 150 MB.',
+  upload_not_found: 'The upload did not finish. Please try again.',
+  media_not_configured: 'Video uploads are not set up on the server yet.',
   validation_failed: 'Please check the details and try again.',
   forbidden: 'You do not have access to that.',
   not_found: 'We could not find that.',

@@ -16,12 +16,14 @@ import { WeeklyPlanEditor } from '@/components/plan';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { DAY_LABEL, mock } from '@/data';
 import { useDirectory } from '@/directory/DirectoryProvider';
+import { useExerciseLibrary } from '@/exercises';
 import { useRemote } from '@/hooks/useRemote';
 
 function PlanEditorScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userById, replacePlan } = useDirectory();
+  const library = useExerciseLibrary();
   const client = userById(id ?? null);
 
   const remote = useRemote(() => adminApi.clientPlan(id as string), [id], !!id);
@@ -87,7 +89,7 @@ function PlanEditorScreen() {
           <WeeklyPlanEditor
             draft={draft}
             onChange={setDraft}
-            exercises={mock.exercises}
+            exercises={library.all}
             routines={mock.routines}
           />
 
