@@ -185,6 +185,7 @@ export type CreateExercisePayload = ExerciseFields;
 /** Every field optional. The keys attach files the bucket already has. */
 export type UpdateExercisePayload = Partial<ExerciseFields> & {
   hidden?: boolean;
+  /** Empty string removes the video and its poster; the exercise becomes a draft. */
   video_key?: string;
   /** Empty string removes the poster. */
   thumbnail_key?: string;

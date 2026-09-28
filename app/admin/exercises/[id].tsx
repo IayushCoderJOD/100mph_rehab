@@ -148,13 +148,24 @@ function UploadProgress({ stage, onCancel }: { stage: UploadStage; onCancel: () 
   );
 }
 
+function describe(err: unknown): string {
+  if (err instanceof ApiError) return messageFor(err);
+  if (err instanceof Error) return err.message;
+  return messageFor(err);
+}
+
 /**
  * One movement: its guide text, its demonstration, and whether coaches can
  * pick it. The same screen adds a new movement (/admin/exercises/new).
  *
- * The text is saved first and the video after it, so a slow or failed upload
- * never costs the admin what they typed — the movement just stays a draft
- * until a video lands.
+ * The text and the video are separate on purpose. "Save Changes" only ever
+ * saves text; the video has its own actions — upload, replace, remove — each
+ * of which finishes on its own. So replacing a video never touches the name or
+ * instructions, and a slow upload never holds the form hostage.
+ *
+ * Replacing is safe to do on a movement clients are using: the current video
+ * stays attached until the new one has fully uploaded and been checked, and a
+ * failed or cancelled upload changes nothing for them.
  */
 function ExerciseEditor() {
   const router = useRouter();
@@ -165,22 +176,29 @@ function ExerciseEditor() {
 
   const isNew = !id || id === 'new';
   const existing = isNew ? null : library.find(id);
+  const readOnly = library.usingBundledCatalogue;
 
+  // ---- the guide text
   const [form, setForm] = useState<Form>(EMPTY);
   const [hidden, setHidden] = useState(false);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
+  // ---- the video
   const [file, setFile] = useState<File | null>(null);
   const [fileSeconds, setFileSeconds] = useState<number | null>(null);
   const [checkingFile, setCheckingFile] = useState(false);
   const [stage, setStage] = useState<UploadStage | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [videoBusy, setVideoBusy] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+  const [videoNotice, setVideoNotice] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
 
-  // Fill the form from the library once it is known — and again after a save
-  // hands back the server's copy under a new id.
+  // Fill the form from the library once it is known — and again when a new
+  // movement's id arrives after it is created.
   useEffect(() => {
     if (existing && loadedFor !== existing.id) {
       setForm(formFrom(existing));
@@ -200,12 +218,23 @@ function ExerciseEditor() {
 
   const patch = existing ? changesBetween(form, formFrom(existing)) : null;
   const hiddenChanged = !!existing && hidden !== !!existing.hidden;
-  const dirty = isNew || !!file || hiddenChanged || (!!patch && Object.keys(patch).length > 0);
-  const busy = saving || checkingFile;
+  const textDirty = isNew || hiddenChanged || (!!patch && Object.keys(patch).length > 0);
+  const busy = saving || videoBusy || checkingFile;
+  const hasVideo = !!existing?.video_url;
+
+  const clearFile = () => {
+    setFile(null);
+    setFileSeconds(null);
+  };
+
+  const clearVideoMessages = () => {
+    setVideoError(null);
+    setVideoNotice(null);
+  };
 
   const pick = async () => {
-    setError(null);
-    setNotice(null);
+    clearVideoMessages();
+    setConfirmRemove(false);
     const chosen = await chooseVideoFile();
     if (!chosen) return;
     setCheckingFile(true);
@@ -214,24 +243,82 @@ function ExerciseEditor() {
       setFile(chosen);
       setFileSeconds(seconds);
     } catch (err) {
-      setFile(null);
-      setError(err instanceof Error ? err.message : 'That video could not be used.');
+      clearFile();
+      setVideoError(describe(err));
     } finally {
       setCheckingFile(false);
     }
   };
 
+  /** Uploads the chosen file onto a movement that already exists. */
+  const uploadTo = async (exerciseId: string): Promise<Exercise> => {
+    if (!file) throw new Error('Choose a video first.');
+    const controller = new AbortController();
+    abort.current = controller;
+    try {
+      const saved = await uploadExerciseVideo(exerciseId, file, setStage, controller.signal);
+      library.remember(saved);
+      clearFile();
+      return saved;
+    } finally {
+      abort.current = null;
+      setStage(null);
+    }
+  };
+
+  const uploadVideo = async () => {
+    if (!existing || !file || busy) return;
+    const replacing = hasVideo;
+    setVideoBusy(true);
+    clearVideoMessages();
+    try {
+      const saved = await uploadTo(existing.id);
+      setVideoNotice(
+        replacing
+          ? 'Video replaced. Clients see the new one from now on.'
+          : saved.hidden
+            ? 'Video uploaded. The exercise is still hidden from the picker.'
+            : 'Video uploaded — this exercise can now be added to weeks.'
+      );
+    } catch (err) {
+      setVideoError(
+        err instanceof UploadCancelled
+          ? replacing
+            ? 'Upload cancelled. The current video is unchanged.'
+            : 'Upload cancelled.'
+          : replacing
+            ? `${describe(err)} The current video is unchanged.`
+            : describe(err)
+      );
+    } finally {
+      setVideoBusy(false);
+    }
+  };
+
+  const removeVideo = async () => {
+    if (!existing || busy) return;
+    setVideoBusy(true);
+    clearVideoMessages();
+    try {
+      const saved = await adminApi.updateExercise(existing.id, { video_key: '' });
+      library.remember(saved);
+      setConfirmRemove(false);
+      setVideoNotice('Video removed. This exercise is a draft until it has a new video.');
+    } catch (err) {
+      setVideoError(describe(err));
+    } finally {
+      setVideoBusy(false);
+    }
+  };
+
   const save = async () => {
-    if (problems.length > 0 || busy || !dirty) return;
+    if (problems.length > 0 || busy || !textDirty) return;
     setSaving(true);
     setError(null);
     setNotice(null);
-
-    let saved: Exercise | null = existing;
-    const uploading = file;
     try {
       if (isNew) {
-        saved = await adminApi.createExercise({
+        const created = await adminApi.createExercise({
           name: form.name.trim(),
           category: form.category as string,
           focus: form.focus.trim() || undefined,
@@ -240,44 +327,38 @@ function ExerciseEditor() {
           instructions: form.instructions.trim() || undefined,
           purpose: form.purpose.trim() || undefined,
         });
-        library.remember(saved);
+        library.remember(created);
         // Same screen, now editing what was just created, so a retry after a
         // failed upload attaches to it instead of creating a second one.
-        router.setParams({ id: saved.id });
-      } else if (existing && (hiddenChanged || (patch && Object.keys(patch).length > 0))) {
-        saved = await adminApi.updateExercise(existing.id, { ...patch, ...(hiddenChanged ? { hidden } : {}) });
-        library.remember(saved);
-      }
+        router.setParams({ id: created.id });
 
-      if (uploading && saved) {
-        const controller = new AbortController();
-        abort.current = controller;
-        saved = await uploadExerciseVideo(saved.id, uploading, setStage, controller.signal);
+        if (file) {
+          setVideoBusy(true);
+          clearVideoMessages();
+          try {
+            await uploadTo(created.id);
+            setNotice('Created. The video is live — this exercise can now be added to weeks.');
+          } catch (err) {
+            setNotice('Created as a draft.');
+            setVideoError(
+              err instanceof UploadCancelled
+                ? 'Upload cancelled. Choose the video again to add it.'
+                : `${describe(err)} Choose the video again to retry.`
+            );
+          } finally {
+            setVideoBusy(false);
+          }
+        } else {
+          setNotice('Created as a draft. Add a video to make it available.');
+        }
+      } else if (existing) {
+        const saved = await adminApi.updateExercise(existing.id, { ...patch, ...(hiddenChanged ? { hidden } : {}) });
         library.remember(saved);
-        setFile(null);
-        setFileSeconds(null);
+        setNotice('Saved.');
       }
-
-      setNotice(
-        uploading
-          ? saved?.hidden
-            ? 'Saved. The video is uploaded; the exercise is still hidden from the picker.'
-            : 'Saved. The video is live — this exercise can now be added to weeks.'
-          : saved && !saved.video_url
-            ? 'Saved as a draft. Add a video to make it available.'
-            : 'Saved.'
-      );
     } catch (err) {
-      if (err instanceof UploadCancelled) {
-        setError('Upload cancelled. Everything else was saved — choose the video again to retry.');
-      } else if (err instanceof ApiError) {
-        setError(messageFor(err));
-      } else {
-        setError(err instanceof Error ? err.message : messageFor(err));
-      }
+      setError(describe(err));
     } finally {
-      abort.current = null;
-      setStage(null);
       setSaving(false);
     }
   };
@@ -295,9 +376,6 @@ function ExerciseEditor() {
     );
   }
 
-  const readOnly = library.usingBundledCatalogue;
-  const current = existing;
-
   return (
     <Screen scroll keyboardAvoiding>
       <PageHeader
@@ -305,9 +383,9 @@ function ExerciseEditor() {
         subtitle={
           isNew
             ? 'Write it up, add the video, and it is ready for any client’s week.'
-            : current?.hidden
+            : existing?.hidden
               ? 'Hidden from the picker'
-              : current?.video_url
+              : hasVideo
                 ? 'Live — coaches can add it to weeks'
                 : 'Draft — needs a video before it can be used'
         }
@@ -327,70 +405,161 @@ function ExerciseEditor() {
         Video
       </Text>
       <Card style={styles.videoCard}>
-        {file ? (
-          <View style={styles.fileRow}>
-            <Ionicons name="film-outline" size={22} color={theme.colors.accent} />
-            <View style={styles.fileText}>
-              <Text variant="bodyStrong" numberOfLines={1}>
-                {file.name}
+        {hasVideo && existing ? (
+          <View style={styles.videoBlock}>
+            {file ? (
+              <Text variant="label" color="textSecondary">
+                CURRENT VIDEO — STAYS LIVE UNTIL THE NEW ONE IS UPLOADED
               </Text>
-              <Text variant="caption" color="textSecondary">
-                {formatSize(file.size)}
-                {fileSeconds ? ` · ${formatDuration(fileSeconds)}` : ''} · uploads when you save
-              </Text>
-            </View>
-            {!saving ? (
-              <Pressable
-                onPress={() => {
-                  setFile(null);
-                  setFileSeconds(null);
-                }}
-                hitSlop={8}
-                accessibilityRole="button"
-              >
-                <Text variant="label" color="accent">
-                  Remove
-                </Text>
-              </Pressable>
             ) : null}
+            <VideoPoster
+              key={existing.video_url}
+              videoUrl={existing.video_url}
+              posterUrl={existing.thumbnail_url}
+              caption="What members see"
+            />
           </View>
-        ) : current?.video_url ? (
-          <VideoPoster
-            key={current.video_url}
-            videoUrl={current.video_url}
-            posterUrl={current.thumbnail_url}
-            caption="What members see"
-          />
-        ) : (
+        ) : !file ? (
           <View style={styles.noVideo}>
             <Ionicons name="videocam-off-outline" size={26} color={theme.colors.textMuted} />
             <Text variant="caption" color="textSecondary" align="center">
               No video yet. It cannot go on anyone’s week until it has one.
             </Text>
           </View>
-        )}
+        ) : null}
+
+        {file ? (
+          <View
+            style={[
+              styles.fileRow,
+              { borderColor: theme.colors.accentBorder, borderRadius: theme.radius.md, backgroundColor: theme.colors.accentSoft },
+            ]}
+          >
+            <Ionicons name="film-outline" size={22} color={theme.colors.accent} />
+            <View style={styles.fileText}>
+              <Text variant="label" color="accentText">
+                {hasVideo ? 'NEW VIDEO' : 'VIDEO TO UPLOAD'}
+              </Text>
+              <Text variant="bodyStrong" numberOfLines={1}>
+                {file.name}
+              </Text>
+              <Text variant="caption" color="textSecondary">
+                {formatSize(file.size)}
+                {fileSeconds ? ` · ${formatDuration(fileSeconds)}` : ''}
+                {isNew ? ' · uploads when you create the exercise' : ''}
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
         {stage ? <UploadProgress stage={stage} onCancel={() => abort.current?.abort()} /> : null}
 
-        {readOnly ? null : canUploadHere ? (
-          <>
+        {confirmRemove ? (
+          <View style={[styles.confirm, { borderColor: theme.colors.border, borderRadius: theme.radius.md }]}>
+            <Text variant="bodyStrong">Remove this video?</Text>
+            <Text variant="caption" color="textSecondary">
+              Clients who have this exercise will see “video coming soon” until you add a new one, and it leaves
+              the picker until then. The name and instructions stay as they are.
+            </Text>
+          </View>
+        ) : null}
+
+        {videoError ? (
+          <Text variant="caption" color="danger">
+            {videoError}
+          </Text>
+        ) : null}
+        {videoNotice ? (
+          <Text variant="caption" color="accentText">
+            {videoNotice}
+          </Text>
+        ) : null}
+
+        {readOnly ? null : !canUploadHere ? (
+          <Text variant="caption" color="textMuted" align="center">
+            To add, replace or remove a video, open this page on the website.
+          </Text>
+        ) : isNew ? (
+          <Button
+            label={checkingFile ? 'Checking…' : file ? 'Choose a Different Video' : 'Choose Video'}
+            variant="secondary"
+            loading={checkingFile}
+            disabled={busy}
+            onPress={() => void pick()}
+          />
+        ) : confirmRemove ? (
+          <View style={styles.buttonRow}>
             <Button
-              label={checkingFile ? 'Checking…' : file || current?.video_url ? 'Choose a Different Video' : 'Choose Video'}
+              label="Keep Video"
+              variant="ghost"
+              fullWidth={false}
+              disabled={videoBusy}
+              onPress={() => setConfirmRemove(false)}
+              style={styles.rowButton}
+            />
+            <Button
+              label="Remove Video"
+              fullWidth={false}
+              loading={videoBusy}
+              onPress={() => void removeVideo()}
+              style={styles.rowButton}
+            />
+          </View>
+        ) : file ? (
+          <View style={styles.buttonRow}>
+            <Button
+              label="Cancel"
+              variant="ghost"
+              fullWidth={false}
+              disabled={videoBusy}
+              onPress={() => {
+                clearFile();
+                clearVideoMessages();
+              }}
+              style={styles.rowButton}
+            />
+            <Button
+              label={hasVideo ? 'Upload and Replace' : 'Upload Video'}
+              fullWidth={false}
+              loading={videoBusy}
+              disabled={busy && !videoBusy}
+              onPress={() => void uploadVideo()}
+              style={styles.rowButton}
+            />
+          </View>
+        ) : (
+          <View style={styles.buttonRow}>
+            {hasVideo ? (
+              <Button
+                label="Remove Video"
+                variant="ghost"
+                fullWidth={false}
+                disabled={busy}
+                onPress={() => {
+                  clearVideoMessages();
+                  setConfirmRemove(true);
+                }}
+                style={styles.rowButton}
+              />
+            ) : null}
+            <Button
+              label={checkingFile ? 'Checking…' : hasVideo ? 'Replace Video' : 'Upload Video'}
               variant="secondary"
+              fullWidth={false}
               loading={checkingFile}
               disabled={busy}
               onPress={() => void pick()}
+              style={styles.rowButton}
             />
-            <Text variant="caption" color="textMuted" align="center">
-              MP4, up to {MAX_VIDEO_MB} MB. Clips sent over WhatsApp are already the right format. Sound is
-              always muted for members.
-            </Text>
-          </>
-        ) : (
-          <Text variant="caption" color="textMuted" align="center">
-            To add or replace a video, open this page on the website.
-          </Text>
+          </View>
         )}
+
+        {!readOnly && canUploadHere ? (
+          <Text variant="caption" color="textMuted" align="center">
+            MP4, up to {MAX_VIDEO_MB} MB. Clips sent over WhatsApp are already the right format. Sound is always
+            muted for members.
+          </Text>
+        ) : null}
       </Card>
 
       {/* ---- The guide ---- */}
@@ -484,16 +653,8 @@ function ExerciseEditor() {
 
       {readOnly ? null : (
         <Button
-          label={
-            isNew
-              ? file
-                ? 'Create and Upload'
-                : 'Create Exercise'
-              : file
-                ? 'Save and Upload'
-                : 'Save Changes'
-          }
-          disabled={problems.length > 0 || !dirty || busy}
+          label={isNew ? (file ? 'Create and Upload' : 'Create Exercise') : 'Save Changes'}
+          disabled={problems.length > 0 || !textDirty || busy}
           loading={saving}
           onPress={() => void save()}
           style={styles.save}
@@ -516,9 +677,13 @@ const styles = StyleSheet.create({
   section: { marginTop: 20 },
   sectionTitle: { marginTop: 28, marginBottom: 12 },
   videoCard: { gap: 14 },
+  videoBlock: { gap: 8 },
   noVideo: { alignItems: 'center', gap: 8, paddingVertical: 20 },
-  fileRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  fileRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, padding: 12 },
   fileText: { flex: 1, gap: 2 },
+  confirm: { borderWidth: 1, padding: 14, gap: 6 },
+  buttonRow: { flexDirection: 'row', gap: 10 },
+  rowButton: { flex: 1 },
   progress: { gap: 8 },
   progressHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   track: { height: 6, borderRadius: 3, overflow: 'hidden' },

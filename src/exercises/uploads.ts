@@ -159,6 +159,10 @@ export async function checkVideoFile(file: File): Promise<number> {
 /**
  * Checks, uploads and attaches a demonstration video, reporting each stage.
  * Resolves with the exercise as the API now has it.
+ *
+ * Replacing is the same call. The exercise keeps its current video until the
+ * new file has fully landed and the API has checked it, so a failed or
+ * cancelled upload leaves members exactly where they were.
  */
 export async function uploadExerciseVideo(
   exerciseId: string,
@@ -190,8 +194,11 @@ export async function uploadExerciseVideo(
   }
 
   onStage({ step: 'saving' });
+  // The video and its poster change together. Replacing a video whose new
+  // frame could not be captured clears the old poster rather than leaving a
+  // still from the previous clip in front of the new one.
   return adminApi.updateExercise(exerciseId, {
     video_key: ticket.key,
-    ...(posterKey ? { thumbnail_key: posterKey } : {}),
+    thumbnail_key: posterKey ?? '',
   });
 }
