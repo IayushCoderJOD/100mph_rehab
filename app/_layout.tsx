@@ -12,8 +12,10 @@ import { useEffect } from 'react';
 import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ensureServerAwake } from '@/api';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { CheckInProvider } from '@/checkin/CheckInProvider';
+import { ServerWakeNotice } from '@/components/common';
 import { features } from '@/config/features';
 import { DirectoryProvider } from '@/directory/DirectoryProvider';
 import { MembershipProvider } from '@/membership/MembershipProvider';
@@ -64,6 +66,7 @@ function RootNavigator() {
           <Stack.Screen name="admin" />
         </Stack.Protected>
       </Stack>
+      <ServerWakeNotice />
     </View>
   );
 }
@@ -79,6 +82,12 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync();
   }, [loaded]);
+
+  // Start waking the API the moment the app opens, so a host that idled it
+  // boots while the member is still reading the screen or typing a password.
+  useEffect(() => {
+    void ensureServerAwake();
+  }, []);
 
   if (!loaded) return null;
 

@@ -4,3 +4,4 @@ export * from './AppHeader';
 export * from './Tile';
 export * from './Wordmark';
 export * from './PageHeader';
+export * from './ServerWakeNotice';

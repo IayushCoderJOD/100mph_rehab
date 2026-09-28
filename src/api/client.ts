@@ -3,6 +3,7 @@ import { API_BASE_URL, REQUEST_TIMEOUT_MS } from './config';
 import { endpoints } from './endpoints';
 import { ApiError } from './errors';
 import { TokenPair, tokenStore } from './tokens';
+import { ensureServerAwake, markServerContact } from './wake';
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
@@ -56,11 +57,15 @@ async function parseError(response: Response): Promise<ApiError> {
 }
 
 async function rawRequest(path: string, options: RequestOptions, accessToken: string | null) {
+  // After a quiet spell the API may be asleep; wait for it before the clock
+  // below starts, rather than timing out on the host's boot.
+  await ensureServerAwake();
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    return await fetch(`${API_BASE_URL}${path}`, {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
       method: options.method ?? 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -69,6 +74,8 @@ async function rawRequest(path: string, options: RequestOptions, accessToken: st
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: controller.signal,
     });
+    if (response.status < 500) markServerContact();
+    return response;
   } catch {
     // fetch only rejects on a transport failure; HTTP errors resolve normally.
     throw new ApiError('network_error', 'Could not reach the server', 0);

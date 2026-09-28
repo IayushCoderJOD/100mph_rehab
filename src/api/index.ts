@@ -5,6 +5,7 @@ export { endpoints } from './endpoints';
 export { ApiError, messageFor } from './errors';
 export type { ApiErrorCode } from './errors';
 export { tokenStore } from './tokens';
+export { ensureServerAwake, useServerWaking } from './wake';
 export type { TokenPair } from './tokens';
 export {
   adminApi,
