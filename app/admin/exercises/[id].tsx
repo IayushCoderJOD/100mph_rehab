@@ -10,10 +10,12 @@ import { VideoPoster } from '@/components/session';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { CATEGORY_LABEL, EXERCISE_CATEGORIES, Exercise, ExerciseCategory } from '@/data';
 import {
-  MAX_VIDEO_MB,
+  MAX_SOURCE_MINUTES,
   UploadCancelled,
+  UploadResult,
   UploadStage,
   VIDEO_ACCEPT,
+  VideoPlan,
   canUploadHere,
   checkVideoFile,
   uploadExerciseVideo,
@@ -90,6 +92,31 @@ function formatDuration(seconds: number): string {
   return whole >= 60 ? `${Math.floor(whole / 60)}m ${whole % 60}s` : `${whole}s`;
 }
 
+/** What will happen to the chosen file, in a line. */
+function describePlan(plan: VideoPlan): string {
+  if (plan.action === 'copy') return 'Already small — sent as it is, without the sound';
+  if (!plan.target) return 'Will be converted to MP4 before it uploads';
+  const shrinking = plan.target.width < plan.width || plan.target.height < plan.height;
+  const short = Math.min(plan.target.width, plan.target.height);
+  return shrinking ? `Will be resized to ${short}p and compressed before it uploads` : 'Will be compressed before it uploads';
+}
+
+/** Tells the admin up front when the slow converter is the one that will run, and what to do about it. */
+function slowWarning(plan: VideoPlan): string | null {
+  if (plan.action !== 'compress' || !plan.slow) return null;
+  const format = plan.codecLabel ? `${plan.codecLabel} video` : 'this kind of video';
+  return (
+    `This browser cannot read ${format} directly, so converting it can take several minutes — keep this tab open. ` +
+    'Chrome or Safari on a phone, Mac or Windows computer is usually much faster.'
+  );
+}
+
+function sizeNote(original: File, result: UploadResult): string {
+  return result.compressed && result.sentBytes < original.size
+    ? ` Compressed from ${formatSize(original.size)} to ${formatSize(result.sentBytes)}.`
+    : '';
+}
+
 function CategoryChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const { theme } = useTheme();
   const { hovered, hoverProps } = useHover();
@@ -115,15 +142,34 @@ function CategoryChip({ label, active, onPress }: { label: string; active: boole
   );
 }
 
+function formatWait(seconds: number): string {
+  if (seconds < 50) return 'less than a minute';
+  const minutes = Math.round(seconds / 60);
+  return minutes <= 1 ? 'about a minute' : `about ${minutes} minutes`;
+}
+
+function stageLabel(stage: UploadStage): string {
+  switch (stage.step) {
+    case 'checking':
+      return 'Checking the video…';
+    case 'loading':
+      return `Getting the converter ready… ${Math.round(stage.progress * 100)}%`;
+    case 'compressing':
+      return (
+        `Compressing… ${Math.round(stage.progress * 100)}%` +
+        (stage.secondsLeft != null ? ` · ${formatWait(stage.secondsLeft)} left` : '')
+      );
+    case 'uploading':
+      return `Uploading… ${Math.round(stage.progress * 100)}%`;
+    case 'saving':
+      return 'Saving…';
+  }
+}
+
 function UploadProgress({ stage, onCancel }: { stage: UploadStage; onCancel: () => void }) {
   const { theme } = useTheme();
-  const fraction = stage.step === 'uploading' ? stage.progress : stage.step === 'saving' ? 1 : 0;
-  const label =
-    stage.step === 'checking'
-      ? 'Checking the video…'
-      : stage.step === 'uploading'
-        ? `Uploading… ${Math.round(stage.progress * 100)}%`
-        : 'Saving…';
+  const fraction = stage.step === 'saving' ? 1 : stage.step === 'checking' ? 0 : stage.progress;
+  const label = stageLabel(stage);
 
   return (
     <View style={styles.progress} accessibilityLiveRegion="polite">
@@ -188,7 +234,7 @@ function ExerciseEditor() {
 
   // ---- the video
   const [file, setFile] = useState<File | null>(null);
-  const [fileSeconds, setFileSeconds] = useState<number | null>(null);
+  const [filePlan, setFilePlan] = useState<VideoPlan | null>(null);
   const [checkingFile, setCheckingFile] = useState(false);
   const [stage, setStage] = useState<UploadStage | null>(null);
   const [videoBusy, setVideoBusy] = useState(false);
@@ -221,10 +267,11 @@ function ExerciseEditor() {
   const textDirty = isNew || hiddenChanged || (!!patch && Object.keys(patch).length > 0);
   const busy = saving || videoBusy || checkingFile;
   const hasVideo = !!existing?.video_url;
+  const slowNote = file && filePlan ? slowWarning(filePlan) : null;
 
   const clearFile = () => {
     setFile(null);
-    setFileSeconds(null);
+    setFilePlan(null);
   };
 
   const clearVideoMessages = () => {
@@ -239,9 +286,9 @@ function ExerciseEditor() {
     if (!chosen) return;
     setCheckingFile(true);
     try {
-      const seconds = await checkVideoFile(chosen);
+      const plan = await checkVideoFile(chosen);
       setFile(chosen);
-      setFileSeconds(seconds);
+      setFilePlan(plan);
     } catch (err) {
       clearFile();
       setVideoError(describe(err));
@@ -250,16 +297,16 @@ function ExerciseEditor() {
     }
   };
 
-  /** Uploads the chosen file onto a movement that already exists. */
-  const uploadTo = async (exerciseId: string): Promise<Exercise> => {
+  /** Converts and uploads the chosen file onto a movement that already exists. */
+  const uploadTo = async (exerciseId: string): Promise<UploadResult> => {
     if (!file) throw new Error('Choose a video first.');
     const controller = new AbortController();
     abort.current = controller;
     try {
-      const saved = await uploadExerciseVideo(exerciseId, file, setStage, controller.signal);
-      library.remember(saved);
+      const result = await uploadExerciseVideo(exerciseId, file, setStage, controller.signal);
+      library.remember(result.exercise);
       clearFile();
-      return saved;
+      return result;
     } finally {
       abort.current = null;
       setStage(null);
@@ -272,13 +319,13 @@ function ExerciseEditor() {
     setVideoBusy(true);
     clearVideoMessages();
     try {
-      const saved = await uploadTo(existing.id);
+      const result = await uploadTo(existing.id);
       setVideoNotice(
-        replacing
+        (replacing
           ? 'Video replaced. Clients see the new one from now on.'
-          : saved.hidden
+          : result.exercise.hidden
             ? 'Video uploaded. The exercise is still hidden from the picker.'
-            : 'Video uploaded — this exercise can now be added to weeks.'
+            : 'Video uploaded — this exercise can now be added to weeks.') + sizeNote(file, result)
       );
     } catch (err) {
       setVideoError(
@@ -336,8 +383,8 @@ function ExerciseEditor() {
           setVideoBusy(true);
           clearVideoMessages();
           try {
-            await uploadTo(created.id);
-            setNotice('Created. The video is live — this exercise can now be added to weeks.');
+            const result = await uploadTo(created.id);
+            setNotice('Created. The video is live — this exercise can now be added to weeks.' + sizeNote(file, result));
           } catch (err) {
             setNotice('Created as a draft.');
             setVideoError(
@@ -445,11 +492,22 @@ function ExerciseEditor() {
               </Text>
               <Text variant="caption" color="textSecondary">
                 {formatSize(file.size)}
-                {fileSeconds ? ` · ${formatDuration(fileSeconds)}` : ''}
+                {filePlan?.durationSec ? ` · ${formatDuration(filePlan.durationSec)}` : ''}
                 {isNew ? ' · uploads when you create the exercise' : ''}
               </Text>
+              {filePlan && !stage ? (
+                <Text variant="caption" color="textSecondary">
+                  {describePlan(filePlan)}
+                </Text>
+              ) : null}
             </View>
           </View>
+        ) : null}
+
+        {slowNote ? (
+          <Text variant="caption" color="textSecondary">
+            {slowNote}
+          </Text>
         ) : null}
 
         {stage ? <UploadProgress stage={stage} onCancel={() => abort.current?.abort()} /> : null}
@@ -556,8 +614,8 @@ function ExerciseEditor() {
 
         {!readOnly && canUploadHere ? (
           <Text variant="caption" color="textMuted" align="center">
-            MP4, up to {MAX_VIDEO_MB} MB. Clips sent over WhatsApp are already the right format. Sound is always
-            muted for members.
+            Any video from a phone or camera, up to {MAX_SOURCE_MINUTES} minutes. It is resized to 720p and compressed
+            before it uploads, and the sound is removed — members never hear it.
           </Text>
         ) : null}
       </Card>

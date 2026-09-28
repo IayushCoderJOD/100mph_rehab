@@ -358,7 +358,11 @@ correctly; delivery logs it instead of mailing it. Wire the mailer where
 zero-egress bucket behind Cloudflare, and referenced from the catalogue by key.
 The app resolves keys against `EXPO_PUBLIC_MEDIA_BASE_URL`. Do not roll your
 own HLS transcoding — the files are small enough that adaptive bitrate would be
-solving a problem they do not have.
+solving a problem they do not have. Videos admins upload from the exercise
+editor are converted in their browser to the same 720p H.264 MP4, without
+sound or metadata, before they are sent (`src/exercises/videoPrep.ts`: WebCodecs
+through Mediabunny, or ffmpeg.wasm for a file the browser cannot decode), so
+nothing needs re-encoding by hand.
 
 **Per-IP rate limiting.** Per-account throttling is in. Per-IP limits belong in
 Redis or at the edge, not in the app's own datastore.

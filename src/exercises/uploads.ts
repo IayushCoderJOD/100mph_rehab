@@ -1,48 +1,46 @@
 import { Platform } from 'react-native';
 import { UploadTicket, adminApi } from '@/api';
 import { Exercise } from '@/data';
+import { PrepProgress, UploadCancelled, VideoPlan, planVideo, prepareVideo } from './videoPrep';
 
-/** Matches the API's app.media.max-video-mb. */
+export { MAX_SOURCE_MINUTES, UploadCancelled } from './videoPrep';
+export type { VideoPlan } from './videoPrep';
+
+/** Matches the API's app.media.max-video-mb. It is the file that is sent that counts, after compression. */
 export const MAX_VIDEO_MB = 150;
 
-const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
-
-/** For the file input's accept attribute. */
-export const VIDEO_ACCEPT = [...VIDEO_TYPES, '.mp4', '.mov', '.webm'].join(',');
+/** Anything a phone or camera records. It is converted before it is sent. */
+export const VIDEO_ACCEPT = 'video/*,.mp4,.m4v,.mov,.webm,.mkv,.avi,.3gp';
 
 /** Uploads run from the website; the phone apps send admins there. */
 export const canUploadHere = Platform.OS === 'web';
 
 export type UploadStage =
   | { step: 'checking' }
+  | PrepProgress
   | { step: 'uploading'; progress: number }
   | { step: 'saving' };
 
-export class UploadCancelled extends Error {
-  constructor() {
-    super('Upload cancelled.');
-  }
-}
+export type UploadResult = {
+  exercise: Exercise;
+  /** The size of the MP4 that was sent. */
+  sentBytes: number;
+  compressed: boolean;
+};
 
 /** Some browsers leave File.type empty; the extension is the next best thing. */
-function videoType(file: File): string | null {
-  if (VIDEO_TYPES.includes(file.type)) return file.type;
-  const extension = file.name.split('.').pop()?.toLowerCase();
-  if (extension === 'mp4' || extension === 'm4v') return 'video/mp4';
-  if (extension === 'mov') return 'video/quicktime';
-  if (extension === 'webm') return 'video/webm';
-  return null;
+function requireVideo(file: File): void {
+  if (file.type.startsWith('video/') || /\.(mp4|m4v|mov|webm|mkv|avi|3gp)$/i.test(file.name)) return;
+  throw new Error('Choose a video file.');
 }
 
-type VideoCheck = { durationSec: number; poster: Blob | null };
+type VideoCheck = { poster: Blob | null };
 
 /**
- * Plays the file once, off screen, before anything is uploaded.
- *
- * If this browser cannot decode it, members' phones may not either — the
- * usual culprit is an iPhone's HEVC .mov — and it is far better to say so now
- * than after a 100 MB upload. The same pass grabs a frame a second in (the
- * first is often black) to use as the poster members see before they tap play.
+ * Plays the converted file once, off screen, before anything is uploaded — the
+ * last check that what members get actually plays. The same pass grabs a frame
+ * a second in (the first is often black) to use as the poster members see
+ * before they tap play.
  */
 function inspectVideo(file: File): Promise<VideoCheck> {
   return new Promise((resolve, reject) => {
@@ -66,8 +64,8 @@ function inspectVideo(file: File): Promise<VideoCheck> {
       finish(() =>
         reject(
           new Error(
-            "This video can't be played in a browser, so members may not be able to watch it. " +
-              'Export it as MP4 (H.264) — sending it to yourself on WhatsApp does this — and try again.'
+            'The converted video would not play back, so it was not uploaded. ' +
+              'Try exporting it from your phone as an MP4 and upload that.'
           )
         )
       );
@@ -88,8 +86,7 @@ function inspectVideo(file: File): Promise<VideoCheck> {
       canvas.width = Math.round(video.videoWidth * scale);
       canvas.height = Math.round(video.videoHeight * scale);
       canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const durationSec = Number.isFinite(video.duration) ? video.duration : 0;
-      canvas.toBlob((poster) => finish(() => resolve({ durationSec, poster })), 'image/jpeg', 0.82);
+      canvas.toBlob((poster) => finish(() => resolve({ poster })), 'image/jpeg', 0.82);
     };
 
     video.src = url;
@@ -135,30 +132,30 @@ function putFile(
   });
 }
 
-/** Type and size, before anything is read. Throws with a message for the admin. */
-function requireAcceptable(file: File): string {
-  const contentType = videoType(file);
-  if (!contentType) throw new Error('Choose a video file — MP4 works everywhere.');
-  if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
-    throw new Error(`That video is ${Math.round(file.size / 1024 / 1024)} MB. The limit is ${MAX_VIDEO_MB} MB.`);
+/** A phone that locks its screen mid-conversion suspends the page. Best effort: not every browser has wake locks. */
+async function keepScreenOn(): Promise<() => void> {
+  try {
+    const lock = await navigator.wakeLock?.request('screen');
+    return () => void lock?.release().catch(() => undefined);
+  } catch {
+    return () => undefined;
   }
-  return contentType;
 }
 
 /**
- * Checks a file the moment it is chosen, so a video members could not play is
- * turned away before the admin fills in the rest of the form. Resolves with
- * the length in seconds.
+ * Reads a file the moment it is chosen and works out what will happen to it,
+ * so a file that is not a usable video is turned away before the admin fills
+ * in the rest of the form.
  */
-export async function checkVideoFile(file: File): Promise<number> {
+export async function checkVideoFile(file: File): Promise<VideoPlan> {
   if (!canUploadHere) throw new Error('Upload videos from the website.');
-  requireAcceptable(file);
-  return (await inspectVideo(file)).durationSec;
+  requireVideo(file);
+  return planVideo(file);
 }
 
 /**
- * Checks, uploads and attaches a demonstration video, reporting each stage.
- * Resolves with the exercise as the API now has it.
+ * Converts, checks, uploads and attaches a demonstration video, reporting each
+ * stage. Resolves with the exercise as the API now has it.
  *
  * Replacing is the same call. The exercise keeps its current video until the
  * new file has fully landed and the API has checked it, so a failed or
@@ -169,36 +166,52 @@ export async function uploadExerciseVideo(
   file: File,
   onStage: (stage: UploadStage) => void,
   signal?: AbortSignal
-): Promise<Exercise> {
+): Promise<UploadResult> {
   if (!canUploadHere) throw new Error('Upload videos from the website.');
-  const contentType = requireAcceptable(file);
+  requireVideo(file);
 
-  onStage({ step: 'checking' });
-  const check = await inspectVideo(file);
-  if (signal?.aborted) throw new UploadCancelled();
-
-  const ticket = await adminApi.requestUpload('video', contentType, file.size, file.name);
-  onStage({ step: 'uploading', progress: 0 });
-  await putFile(ticket, file, (progress) => onStage({ step: 'uploading', progress }), signal);
-
-  // The poster is a nicety. If it fails, the video still goes live.
-  let posterKey: string | undefined;
-  if (check.poster) {
-    try {
-      const posterTicket = await adminApi.requestUpload('poster', 'image/jpeg', check.poster.size, file.name);
-      await putFile(posterTicket, check.poster, undefined, signal);
-      posterKey = posterTicket.key;
-    } catch (err) {
-      if (err instanceof UploadCancelled) throw err;
+  const release = await keepScreenOn();
+  try {
+    onStage({ step: 'checking' });
+    const plan = await planVideo(file);
+    const video = await prepareVideo(file, plan, onStage, signal);
+    if (video.size > MAX_VIDEO_MB * 1024 * 1024) {
+      throw new Error(
+        `Even compressed, this video is ${Math.round(video.size / 1024 / 1024)} MB — the limit is ${MAX_VIDEO_MB} MB. ` +
+          'Trim it to just the exercise and try again.'
+      );
     }
-  }
 
-  onStage({ step: 'saving' });
-  // The video and its poster change together. Replacing a video whose new
-  // frame could not be captured clears the old poster rather than leaving a
-  // still from the previous clip in front of the new one.
-  return adminApi.updateExercise(exerciseId, {
-    video_key: ticket.key,
-    thumbnail_key: posterKey ?? '',
-  });
+    onStage({ step: 'checking' });
+    const check = await inspectVideo(video);
+    if (signal?.aborted) throw new UploadCancelled();
+
+    const ticket = await adminApi.requestUpload('video', video.type, video.size, video.name);
+    onStage({ step: 'uploading', progress: 0 });
+    await putFile(ticket, video, (progress) => onStage({ step: 'uploading', progress }), signal);
+
+    // The poster is a nicety. If it fails, the video still goes live.
+    let posterKey: string | undefined;
+    if (check.poster) {
+      try {
+        const posterTicket = await adminApi.requestUpload('poster', 'image/jpeg', check.poster.size, video.name);
+        await putFile(posterTicket, check.poster, undefined, signal);
+        posterKey = posterTicket.key;
+      } catch (err) {
+        if (err instanceof UploadCancelled) throw err;
+      }
+    }
+
+    onStage({ step: 'saving' });
+    // The video and its poster change together. Replacing a video whose new
+    // frame could not be captured clears the old poster rather than leaving a
+    // still from the previous clip in front of the new one.
+    const exercise = await adminApi.updateExercise(exerciseId, {
+      video_key: ticket.key,
+      thumbnail_key: posterKey ?? '',
+    });
+    return { exercise, sentBytes: video.size, compressed: plan.action === 'compress' };
+  } finally {
+    release();
+  }
 }
