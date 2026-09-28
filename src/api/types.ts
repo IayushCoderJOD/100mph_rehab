@@ -170,6 +170,37 @@ export type CreateUserPayload = {
   role: 'member' | 'admin';
 };
 
+export type ExerciseFields = {
+  name: string;
+  category: string;
+  focus?: string;
+  prerequisites?: string;
+  instructions?: string;
+  purpose?: string;
+  suggested_sets?: string;
+};
+
+export type CreateExercisePayload = ExerciseFields;
+
+/** Every field optional. The keys attach files the bucket already has. */
+export type UpdateExercisePayload = Partial<ExerciseFields> & {
+  hidden?: boolean;
+  video_key?: string;
+  /** Empty string removes the poster. */
+  thumbnail_key?: string;
+};
+
+export type UploadKind = 'video' | 'poster';
+
+/** Where to PUT one file, and what to send with it. */
+export type UploadTicket = {
+  upload_url: string;
+  method: 'PUT';
+  headers: Record<string, string>;
+  key: string;
+  expires_at: string;
+};
+
 export type UpdateMePayload = {
   full_name?: string;
   /** Empty string clears it. */

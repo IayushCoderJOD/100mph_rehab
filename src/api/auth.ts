@@ -1,4 +1,4 @@
-import { ISODate, User, UserStatus } from '@/data';
+import { Exercise, ISODate, User, UserStatus } from '@/data';
 import { api } from './client';
 import { endpoints } from './endpoints';
 import { tokenStore } from './tokens';
@@ -10,6 +10,7 @@ import {
   CheckInSummary,
   ClientDetail,
   ClientSummary,
+  CreateExercisePayload,
   CreateUserPayload,
   LogSessionPayload,
   MeResponse,
@@ -18,8 +19,11 @@ import {
   RoutineResponse,
   SessionLogResponse,
   SessionPlanResponse,
+  UpdateExercisePayload,
   UpdateMePayload,
   UpdatePlanPayload,
+  UploadKind,
+  UploadTicket,
   WeeklyPlanResponse,
 } from './types';
 
@@ -86,9 +90,12 @@ export const authApi = {
 
 export const contentApi = {
   programs: () => api.get<unknown[]>(endpoints.content.programs),
+  /** The published library: what a coach can prescribe. */
+  exercises: () => api.get<Exercise[]>(endpoints.content.exercises),
+  /** One exercise, hidden ones included — for a guide opened from an older plan. */
+  exercise: (exerciseId: string) => api.get<Exercise>(endpoints.content.exercise(exerciseId)),
   programContent: (programId: string) =>
     api.get<ProgramContent>(endpoints.content.programContent(programId)),
-  exercise: (exerciseId: string) => api.get(endpoints.content.exercise(exerciseId)),
   learn: (contentId: string) => api.get(endpoints.content.learn(contentId)),
   routines: () => api.get<RoutineResponse[]>(endpoints.content.routines),
 };
@@ -179,5 +186,22 @@ export const adminApi = {
     api.put<ProgressionResponse>(endpoints.admin.clientProgression(userId), {
       signature_exercise_id: signatureExerciseId,
       progression_level_id: progressionLevelId,
+    }),
+
+  /** The whole exercise library, drafts and hidden movements included. */
+  exercises: () => api.get<Exercise[]>(endpoints.admin.exercises),
+
+  createExercise: (payload: CreateExercisePayload) => api.post<Exercise>(endpoints.admin.exercises, payload),
+
+  updateExercise: (exerciseId: string, payload: UpdateExercisePayload) =>
+    api.patch<Exercise>(endpoints.admin.exercise(exerciseId), payload),
+
+  /** Somewhere to PUT one file. The file goes straight to storage, not through the API. */
+  requestUpload: (kind: UploadKind, contentType: string, sizeBytes: number, fileName: string) =>
+    api.post<UploadTicket>(endpoints.admin.exerciseUploads, {
+      kind,
+      content_type: contentType,
+      size_bytes: sizeBytes,
+      file_name: fileName,
     }),
 };

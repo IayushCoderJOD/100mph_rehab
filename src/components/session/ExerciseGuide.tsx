@@ -59,6 +59,16 @@ type ExerciseGuideProps = {
 export function ExerciseGuide({ exercise, method }: ExerciseGuideProps) {
   const { theme } = useTheme();
 
+  // Movements added from the app may leave any of these blank; a heading with
+  // nothing under it reads as something failed to load, so it is left out.
+  const prerequisites = exercise.prerequisites?.trim() || null;
+  const instructions = exercise.instructions?.trim() || null;
+  const purpose = exercise.purpose?.trim() || null;
+  const specs = [
+    prerequisites ? { label: 'Prerequisites', value: prerequisites } : null,
+    method !== undefined ? { label: 'Method', value: method } : null,
+  ].filter((row): row is { label: string; value: string } => row !== null);
+
   return (
     <>
       <VideoPoster videoUrl={exercise.video_url} posterUrl={exercise.thumbnail_url} />
@@ -66,28 +76,37 @@ export function ExerciseGuide({ exercise, method }: ExerciseGuideProps) {
       <Text variant="display" style={styles.name}>
         {exercise.name}
       </Text>
-      <Text variant="subtitle" color="textSecondary" style={styles.focus}>
-        {exercise.focus}
-      </Text>
-
-      <View
-        style={[styles.specs, { borderColor: theme.colors.border, borderRadius: theme.radius.md }]}
-      >
-        <SpecRow label="Prerequisites" value={exercise.prerequisites} last={method === undefined} />
-        {method !== undefined ? <SpecRow label="Method" value={method} last /> : null}
-      </View>
-
-      <Section label="INSTRUCTIONS">
-        <Text variant="body" color="textSecondary" style={styles.prose}>
-          {exercise.instructions}
+      {exercise.focus ? (
+        <Text variant="subtitle" color="textSecondary" style={styles.focus}>
+          {exercise.focus}
         </Text>
-      </Section>
+      ) : null}
 
-      <Section label="PURPOSE">
-        <Text variant="body" color="textSecondary" style={styles.prose}>
-          {exercise.purpose}
-        </Text>
-      </Section>
+      {specs.length > 0 ? (
+        <View
+          style={[styles.specs, { borderColor: theme.colors.border, borderRadius: theme.radius.md }]}
+        >
+          {specs.map((row, index) => (
+            <SpecRow key={row.label} label={row.label} value={row.value} last={index === specs.length - 1} />
+          ))}
+        </View>
+      ) : null}
+
+      {instructions ? (
+        <Section label="INSTRUCTIONS">
+          <Text variant="body" color="textSecondary" style={styles.prose}>
+            {instructions}
+          </Text>
+        </Section>
+      ) : null}
+
+      {purpose ? (
+        <Section label="PURPOSE">
+          <Text variant="body" color="textSecondary" style={styles.prose}>
+            {purpose}
+          </Text>
+        </Section>
+      ) : null}
     </>
   );
 }

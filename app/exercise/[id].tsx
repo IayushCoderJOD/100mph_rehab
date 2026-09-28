@@ -1,20 +1,20 @@
 import { useLocalSearchParams } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { IconButton } from '@/components/common';
 import { ExerciseGuide } from '@/components/session';
 import { Screen, Text } from '@/components/ui';
-import { findExercise } from '@/data';
+import { useExercise } from '@/exercises';
 import { useDismiss } from '@/navigation/useDismiss';
-import { useProgramData } from '@/program/programData';
 import { usePlan } from '@/plan/PlanProvider';
+import { useTheme } from '@/theme';
 
 export default function ExerciseGuideScreen() {
   const dismiss = useDismiss();
+  const { theme } = useTheme();
   const { id, date } = useLocalSearchParams<{ id: string; date?: string }>();
-  const { exercises } = useProgramData();
   const { today, dayFor, week } = usePlan();
 
-  const exercise = findExercise(exercises, id ?? null);
+  const { exercise, loading } = useExercise(id ?? null);
 
   // Prefer what the session being viewed asks for — that is the day passed in,
   // or today when the guide is opened on its own — then fall back to any other
@@ -32,7 +32,11 @@ export default function ExerciseGuideScreen() {
         <IconButton name="close" variant="plain" onPress={dismiss} />
       </View>
 
-      {!exercise ? (
+      {loading ? (
+        <View style={styles.empty}>
+          <ActivityIndicator color={theme.colors.accent} />
+        </View>
+      ) : !exercise ? (
         <View style={styles.empty}>
           <Text variant="title" align="center">
             Exercise not found

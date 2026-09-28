@@ -18,6 +18,7 @@ import { CheckInProvider } from '@/checkin/CheckInProvider';
 import { ServerWakeNotice } from '@/components/common';
 import { features } from '@/config/features';
 import { DirectoryProvider } from '@/directory/DirectoryProvider';
+import { ExerciseLibraryProvider } from '@/exercises';
 import { MembershipProvider } from '@/membership/MembershipProvider';
 import { ProgramProvider } from '@/program/ProgramProvider';
 import { PlanProvider } from '@/plan/PlanProvider';
@@ -96,17 +97,19 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider>
           <AuthProvider>
-            <DirectoryProvider>
-              <ProgramProvider>
-                <PlanProvider>
-                  <MembershipProvider>
-                    <CheckInProvider>
-                      <RootNavigator />
-                    </CheckInProvider>
-                  </MembershipProvider>
-                </PlanProvider>
-              </ProgramProvider>
-            </DirectoryProvider>
+            <ExerciseLibraryProvider>
+              <DirectoryProvider>
+                <ProgramProvider>
+                  <PlanProvider>
+                    <MembershipProvider>
+                      <CheckInProvider>
+                        <RootNavigator />
+                      </CheckInProvider>
+                    </MembershipProvider>
+                  </PlanProvider>
+                </ProgramProvider>
+              </DirectoryProvider>
+            </ExerciseLibraryProvider>
           </AuthProvider>
         </ThemeProvider>
       </SafeAreaProvider>

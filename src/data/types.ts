@@ -149,7 +149,8 @@ export type ExerciseCategory =
 
 export interface Exercise {
   id: UUID;
-  program_id: UUID;
+  /** The program it was written for. Null for movements an admin added. */
+  program_id: UUID | null;
   name: string;
   category: ExerciseCategory;
   /** One line on what it works, for the list and the guide subtitle. */
@@ -159,6 +160,10 @@ export interface Exercise {
   prerequisites: string;
   instructions: string;
   purpose: string;
+  /** The sets a coach starts from when adding it to a day. From the API's library. */
+  suggested_sets?: string | null;
+  /** Out of the picker, still on plans that use it. From the API's library. */
+  hidden?: boolean;
 }
 
 /** Which exercises make up a session type, in the order they are performed. */

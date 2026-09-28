@@ -36,11 +36,20 @@ const compiled = join(scratch, 'mock.cjs');
 writeFileSync(compiled, outputText);
 const mock = require(compiled);
 
+// The API's exercise library is seeded from these. Each carries the sets a
+// coach starts from; the drafts arrive unfilmed, for an admin to finish.
+const withSets = (exercise) => ({
+  ...exercise,
+  suggested_sets: mock.suggestedSets[exercise.id] ?? null,
+  hidden: false,
+});
+
 const catalogue = {
   programs: mock.programs,
   learn_topics: mock.humanBodyTopics,
   session_types: mock.sessionTypes,
-  exercises: mock.exercises,
+  exercises: mock.exercises.map(withSets),
+  draft_exercises: mock.draftExercises.map(withSets),
   session_exercises: mock.sessionExercises,
   signature_exercises: [mock.signatureExercise],
   progression_levels: mock.progressionLevels,
@@ -70,5 +79,5 @@ for (const routine of catalogue.routines) {
 writeFileSync(out, JSON.stringify(catalogue, null, 2) + '\n');
 console.log(
   `Wrote ${out}: ${catalogue.exercises.length} exercises, ${catalogue.routines.length} routines, ` +
-    `${catalogue.learn_content.length} lessons`
+    `${catalogue.draft_exercises.length} drafts, ${catalogue.learn_content.length} lessons`
 );

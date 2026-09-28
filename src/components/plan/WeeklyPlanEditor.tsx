@@ -13,6 +13,7 @@ import {
   setPrescription,
 } from '@/admin/planDraft';
 import { DAY_LABEL, DAY_SHORT, DayOfWeek, Exercise, Routine, WEEK_DAYS } from '@/data';
+import { isPublished } from '@/exercises';
 import { useTheme } from '@/theme';
 import { fontFamily } from '@/theme/typography';
 import { Button } from '../ui/Button';
@@ -42,6 +43,17 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
   const [copyTargets, setCopyTargets] = useState<DayOfWeek[]>([]);
 
   const lines = useMemo(() => resolveLines(draft[day], exercises), [draft, day, exercises]);
+  // Every movement resolves a line already on the week; only filmed, visible
+  // ones can be added.
+  const publishable = useMemo(() => exercises.filter(isPublished), [exercises]);
+  // A routine is a starting point, not a promise: a movement an admin has
+  // since hidden is left out of it rather than put back on someone's week.
+  const usableRoutines = useMemo(() => {
+    const ids = new Set(publishable.map((exercise) => exercise.id));
+    return routines
+      .map((routine) => ({ ...routine, exercises: routine.exercises.filter((line) => ids.has(line.exercise_id)) }))
+      .filter((routine) => routine.exercises.length > 0);
+  }, [routines, publishable]);
   const trainingDays = WEEK_DAYS.filter((d) => draft[d].length > 0).length;
 
   return (
@@ -227,12 +239,12 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
 
       <ExercisePicker
         visible={sheet === 'add'}
-        exercises={exercises}
+        exercises={publishable}
         lockedIds={draft[day].map((line) => line.exercise_id)}
         title={`Add to ${DAY_LABEL[day]}`}
         onClose={() => setSheet(null)}
         onConfirm={(ids) => {
-          onChange(addExercises(draft, day, ids, routines));
+          onChange(addExercises(draft, day, ids, routines, exercises));
           setSheet(null);
         }}
       />
@@ -250,7 +262,7 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
             Replaces what is on the day. You can still add, remove and reorder afterwards.
           </Text>
           <View style={styles.routines}>
-            {routines.map((routine) => (
+            {usableRoutines.map((routine) => (
               <Pressable
                 key={routine.id}
                 onPress={() => {

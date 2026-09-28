@@ -10,6 +10,7 @@ import { TextField } from '@/components/form';
 import { ExercisePicker } from '@/components/plan';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { Exercise, mock } from '@/data';
+import { useExerciseLibrary } from '@/exercises';
 import { useDirectory } from '@/directory/DirectoryProvider';
 import { useTheme } from '@/theme';
 import { fontFamily } from '@/theme/typography';
@@ -21,6 +22,7 @@ function AssignForm() {
   const { theme } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userById, assignExercises } = useDirectory();
+  const library = useExerciseLibrary();
   const { data: detail } = useClientDetail(id ?? null);
 
   const client = userById(id ?? null) ?? detail?.user ?? null;
@@ -46,11 +48,11 @@ function AssignForm() {
 
   const addSelected = (ids: string[]) => {
     const added = ids
-      .map((exerciseId) => mock.exercises.find((e) => e.id === exerciseId))
+      .map((exerciseId) => library.find(exerciseId))
       .filter((e): e is Exercise => !!e)
       .map((exercise) => ({
         exercise,
-        prescription: suggestedPrescription(exercise.id, mock.routines),
+        prescription: suggestedPrescription(exercise.id, mock.routines, library.all),
       }));
     setLines((prev) => [...prev, ...added]);
     setPicking(false);
@@ -77,7 +79,7 @@ function AssignForm() {
     const failedIds = new Set(result.failed.map((f) => f.exercise_id));
     setLines((prev) => prev.filter((line) => failedIds.has(line.exercise.id)));
     const names = result.failed
-      .map((f) => mock.exercises.find((e) => e.id === f.exercise_id)?.name ?? f.exercise_id)
+      .map((f) => library.find(f.exercise_id)?.name ?? f.exercise_id)
       .join(', ');
     setError(
       result.created.length > 0
@@ -205,7 +207,7 @@ function AssignForm() {
 
       <ExercisePicker
         visible={picking}
-        exercises={mock.exercises}
+        exercises={library.published}
         lockedIds={locked}
         title="Choose exercises"
         onClose={() => setPicking(false)}

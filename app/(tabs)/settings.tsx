@@ -75,6 +75,14 @@ export default function SettingsScreen() {
               onPress={() => router.push('/admin/create-user')}
             />
           ) : null}
+          {can('clients.assign_exercise') ? (
+            <SettingsRow
+              icon="videocam-outline"
+              title="Exercise Library"
+              subtitle="Add exercises and upload their videos"
+              onPress={() => router.push('/admin/exercises')}
+            />
+          ) : null}
         </SettingsSection>
       ) : null}
 

@@ -38,7 +38,9 @@ export const endpoints = {
     programs: '/programs',
     /** GET — everything needed to render one program, in one request. */
     programContent: (programId: string) => `/programs/${programId}/content`,
-    /** GET — one exercise, for the guide screen. */
+    /** GET — the published library: filmed and not hidden. */
+    exercises: '/exercises',
+    /** GET — one exercise, hidden ones too, for the guide screen. */
     exercise: (exerciseId: string) => `/exercises/${exerciseId}`,
     /** GET — the routines a coach can drop onto a day as a starting point. */
     routines: '/routines',
@@ -102,5 +104,12 @@ export const endpoints = {
     clientPlan: (userId: string) => `/admin/clients/${userId}/plan`,
     /** PUT — a coach override of a client's progression. */
     clientProgression: (userId: string) => `/admin/clients/${userId}/progression`,
+
+    /** GET — the whole library, drafts and hidden included. POST — a new movement. */
+    exercises: '/admin/exercises',
+    /** PATCH — edit, hide, or attach an uploaded video / poster. */
+    exercise: (exerciseId: string) => `/admin/exercises/${exerciseId}`,
+    /** POST — a one-time URL to PUT a video or poster to. */
+    exerciseUploads: '/admin/exercises/uploads',
   },
 } as const;
