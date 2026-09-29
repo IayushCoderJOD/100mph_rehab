@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Entitlement, authApi, messageFor, setSessionExpiredHandler, tokenStore } from '@/api';
 import { User, deviceTimezone } from '@/data';
+import { StartupScreen } from '@/components/common/StartupScreen';
 
 type AuthContextValue = {
   isAuthenticated: boolean;
@@ -15,6 +16,14 @@ type AuthContextValue = {
   /** The reason the last sign-in failed, already mapped to user-facing copy. */
   error: string | null;
   signOut: () => void;
+  /**
+   * Deletes this account and all of its data, then signs out. Rejects with the
+   * server's error — a wrong password, or the practice's last admin — and
+   * leaves the session as it was.
+   */
+  deleteAccount: (password: string) => Promise<void>;
+  /** Said once on the sign-in screen after the account was deleted. */
+  notice: string | null;
   /** Re-reads GET /me. Call after something changes the account server-side. */
   refresh: () => Promise<void>;
 };
@@ -33,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [entitlement, setEntitlement] = useState<Entitlement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   const clearSession = useCallback(() => {
@@ -80,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithPassword = useCallback(
     async (email: string, password: string) => {
       setError(null);
+      setNotice(null);
       try {
         const signedIn = await authApi.signIn(email, password, deviceTimezone());
         setUser(signedIn);
@@ -100,6 +111,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [loadSession, clearSession]
+  );
+
+  const deleteAccount = useCallback(
+    async (password: string) => {
+      await authApi.deleteAccount(password);
+      clearSession();
+      setError(null);
+      setNotice('Your account and everything in it have been deleted.');
+    },
+    [clearSession]
   );
 
   const signOut = useCallback(() => {
@@ -126,12 +147,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signInWithPassword,
       error,
       signOut,
+      deleteAccount,
+      notice,
       refresh,
     }),
-    [user, entitlement, signInWithPassword, error, signOut, refresh]
+    [user, entitlement, signInWithPassword, error, signOut, deleteAccount, notice, refresh]
   );
 
-  if (!hydrated) return null;
+  if (!hydrated) return <StartupScreen />;
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

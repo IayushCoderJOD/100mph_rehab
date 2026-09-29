@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { assignmentApi } from '@/api';
 import { useAuth } from '@/auth/AuthProvider';
 import { AssignedExerciseCard } from '@/components/plan';
-import { Button, Card, HeartBadge, Screen, Text } from '@/components/ui';
+import { Button, Card, HeartBadge, Loader, Screen, Text } from '@/components/ui';
 import { useRemote } from '@/hooks/useRemote';
 
 /**
@@ -35,11 +35,7 @@ export default function PlanScreen() {
           <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.retry} />
         </Card>
       ) : loading ? (
-        <Card style={styles.empty}>
-          <Text variant="caption" color="textSecondary" align="center">
-            Loading…
-          </Text>
-        </Card>
+        <Loader />
       ) : items.length === 0 ? (
         <Card style={styles.empty}>
           <HeartBadge size={72} />

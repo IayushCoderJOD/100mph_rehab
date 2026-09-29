@@ -5,6 +5,7 @@ import { useTheme } from '@/theme';
 import { daysSince } from '../admin/ClientRow';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { Loader } from '../ui/Loader';
 import { Text } from '../ui/Text';
 
 type PracticeOverviewProps = {
@@ -66,6 +67,8 @@ export function PracticeOverview({
         .sort((a, b) => (b.latest_pain_score ?? 0) - (a.latest_pain_score ?? 0)),
     };
   }, [roster]);
+  // The first fetch, before there is a roster to count: zeros here would read as an empty practice.
+  const firstLoad = loading && roster.length === 0 && !error;
 
   return (
     <View style={styles.wrap}>
@@ -73,15 +76,17 @@ export function PracticeOverview({
         <Text variant="label" color="textSecondary" align="center" style={styles.kicker}>
           Your Practice · Today
         </Text>
-        <Text variant="title" align="center" style={styles.headline}>
-          {error
-            ? 'Could not load the roster'
-            : loading && roster.length === 0
-              ? 'Loading…'
+        {firstLoad ? (
+          <Loader />
+        ) : (
+          <Text variant="title" align="center" style={styles.headline}>
+            {error
+              ? 'Could not load the roster'
               : stats.attention.length === 0
                 ? 'All caught up'
                 : `${stats.attention.length} need a nudge`}
-        </Text>
+          </Text>
+        )}
         {error ? (
           <>
             <Text variant="caption" color="textSecondary" align="center" style={styles.note}>
@@ -91,12 +96,14 @@ export function PracticeOverview({
           </>
         ) : null}
 
-        <View style={styles.grid}>
-          <Stat value={`${stats.clients}`} label="Active clients" />
-          <Stat value={`${stats.checkedInToday}`} label="Checked in today" />
-          <Stat value={`${stats.trainedThisWeek}`} label="Trained this week" />
-          <Stat value={`${stats.unplanned.length}`} label="No week yet" accent={stats.unplanned.length > 0} />
-        </View>
+        {firstLoad ? null : (
+          <View style={styles.grid}>
+            <Stat value={`${stats.clients}`} label="Active clients" />
+            <Stat value={`${stats.checkedInToday}`} label="Checked in today" />
+            <Stat value={`${stats.trainedThisWeek}`} label="Trained this week" />
+            <Stat value={`${stats.unplanned.length}`} label="No week yet" accent={stats.unplanned.length > 0} />
+          </View>
+        )}
 
         <Button label="Open Clients" onPress={onOpenRoster} style={styles.primary} />
         {canCreateClient ? (

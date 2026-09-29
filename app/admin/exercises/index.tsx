@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { RequirePermission } from '@/access';
 import { PageHeader } from '@/components/common';
 import { TextField } from '@/components/form';
-import { Button, Card, Screen, SegmentedControl, Text } from '@/components/ui';
+import { Button, Card, Loader, Screen, SegmentedControl, Text } from '@/components/ui';
 import { CATEGORY_LABEL, Exercise } from '@/data';
 import { useExerciseLibrary } from '@/exercises';
 import { useHover } from '@/hooks/useHover';
@@ -166,11 +166,7 @@ function ExerciseLibraryScreen() {
             <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.retry} />
           </Card>
         ) : loading && all.length === 0 ? (
-          <Card style={styles.empty}>
-            <Text variant="caption" color="textSecondary" align="center">
-              Loading…
-            </Text>
-          </Card>
+          <Loader />
         ) : shown.length === 0 ? (
           <Card style={styles.empty}>
             <Text variant="heading" align="center">

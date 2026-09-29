@@ -5,7 +5,7 @@ import { useCheckIns } from '@/checkin/CheckInProvider';
 import { PainTrendChart } from '@/components/charts';
 import { describePain } from '@/components/checkin';
 import { SessionStats } from '@/components/session';
-import { Button, Card, Screen, Text } from '@/components/ui';
+import { Button, Card, Loader, Screen, Text } from '@/components/ui';
 import { formatShortDate, formatLongDate } from '@/data';
 import { useTheme } from '@/theme';
 
@@ -58,11 +58,7 @@ export default function ProgressScreen() {
         <Text variant="title" align="center" style={styles.pageTitle}>
           Progress
         </Text>
-        <Card style={styles.empty}>
-          <Text variant="caption" color="textSecondary" align="center">
-            Loading…
-          </Text>
-        </Card>
+        <Loader />
       </Screen>
     );
   }

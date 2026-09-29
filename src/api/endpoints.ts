@@ -87,6 +87,8 @@ export const endpoints = {
     /** POST — provision an account. GET — the raw user list. */
     users: '/admin/users',
     /** PATCH — active / invited / suspended. */
+    /** DELETE — the account and all of its data. */
+    user: (userId: string) => `/admin/users/${userId}`,
     userStatus: (userId: string) => `/admin/users/${userId}/status`,
     /** PUT — set a new temporary password; ends every session the account had. */
     userPassword: (userId: string) => `/admin/users/${userId}/password`,

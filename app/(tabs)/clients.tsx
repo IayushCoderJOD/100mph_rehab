@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { useAccess } from '@/access';
 import { ClientRow, daysSince } from '@/components/admin';
 import { TextField } from '@/components/form';
-import { Button, Card, Screen, SegmentedControl, Text } from '@/components/ui';
+import { Button, Card, Loader, Screen, SegmentedControl, Text } from '@/components/ui';
 import { useDirectory } from '@/directory/DirectoryProvider';
 
 type Filter = 'all' | 'attention' | 'unplanned';
@@ -86,11 +86,7 @@ export default function ClientsScreen() {
             <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.retry} />
           </Card>
         ) : loading && roster.length === 0 ? (
-          <Card style={styles.empty}>
-            <Text variant="caption" color="textSecondary" align="center">
-              Loading…
-            </Text>
-          </Card>
+          <Loader />
         ) : clients.length === 0 ? (
           <Card style={styles.empty}>
             <Text variant="heading" align="center">

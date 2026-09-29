@@ -158,6 +158,16 @@ export default function SettingsScreen() {
       <View style={styles.logout}>
         <Button label="Logout" variant="secondary" onPress={handleLogout} />
       </View>
+
+      <SettingsSection>
+        <SettingsRow
+          icon="trash-outline"
+          title="Delete Account"
+          subtitle="Permanently remove your account and data"
+          tone="danger"
+          onPress={() => router.push('/delete-account')}
+        />
+      </SettingsSection>
     </Screen>
   );
 }

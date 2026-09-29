@@ -5,3 +5,4 @@ export * from './Tile';
 export * from './Wordmark';
 export * from './PageHeader';
 export * from './ServerWakeNotice';
+export * from './StartupScreen';

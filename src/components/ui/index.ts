@@ -6,3 +6,4 @@ export * from './Logo';
 export * from './HeartMark';
 export * from './HeartBadge';
 export * from './SegmentedControl';
+export * from './Loader';

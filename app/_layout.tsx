@@ -59,6 +59,7 @@ function RootNavigator() {
           <Stack.Screen name="account" />
           <Stack.Screen name="edit-profile" />
           <Stack.Screen name="change-password" />
+          <Stack.Screen name="delete-account" />
           {/* Off until billing exists; the flag hides the rows that link here,
               this closes the URL itself. */}
           <Stack.Protected guard={features.membership}>

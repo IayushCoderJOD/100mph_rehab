@@ -11,21 +11,26 @@ import { TextField } from '@/components/form';
 import { AssignedExerciseCard, WeekOverview } from '@/components/plan';
 import { SessionStats } from '@/components/session';
 import { DetailRow } from '@/components/settings';
-import { Button, Card, Screen, Text } from '@/components/ui';
+import { Button, Card, Loader, Screen, Text } from '@/components/ui';
 import { ageFrom, formatLongDate, formatShortDate, mock } from '@/data';
 import { useDirectory } from '@/directory/DirectoryProvider';
+import { useDismiss } from '@/navigation/useDismiss';
 import { useTheme } from '@/theme';
 
 export default function AdminClientScreen() {
   const router = useRouter();
   const { theme } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { removeAssignment, setUserStatus } = useDirectory();
+  const { removeAssignment, setUserStatus, deleteUser } = useDirectory();
+  const dismiss = useDismiss('/(tabs)/clients');
   const { can } = useAccess();
   const { data: detail, loading, error, reload } = useClientDetail(id ?? null);
   const [actionError, setActionError] = useState<string | null>(null);
   // Suspending is a two-tap action: one stray tap should not lock a client out.
   const [confirmSuspend, setConfirmSuspend] = useState(false);
+  // Deleting is the one-way version of suspending, so it gets its own confirm, spelled out.
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [tempPassword, setTempPassword] = useState('');
   const [resetting, setResetting] = useState(false);
@@ -68,8 +73,10 @@ export default function AdminClientScreen() {
   if (!client) {
     return (
       <Screen scroll>
-        <PageHeader title={loading ? 'Loading…' : 'Client not found'} onBack={() => router.back()} />
-        {error ? (
+        <PageHeader title={loading ? '' : 'Client not found'} onBack={() => router.back()} />
+        {loading ? (
+          <Loader />
+        ) : error ? (
           <Card style={styles.empty}>
             <Text variant="caption" color="textSecondary" align="center">
               {error}
@@ -98,6 +105,18 @@ export default function AdminClientScreen() {
     const result = await setUserStatus(client.id, status);
     if (!result.ok) setActionError(result.error);
     else void reload();
+  };
+
+  const removeAccount = async () => {
+    setActionError(null);
+    setDeleting(true);
+    const result = await deleteUser(client.id);
+    if (!result.ok) {
+      setDeleting(false);
+      setActionError(result.error);
+      return;
+    }
+    dismiss();
   };
 
   // The way back in for a client who forgot their password: email reset is
@@ -397,6 +416,34 @@ export default function AdminClientScreen() {
             </View>
           ) : (
             <Button label="Suspend Account" variant="secondary" onPress={() => setConfirmSuspend(true)} />
+          )}
+
+          {confirmDelete ? (
+            <Card style={styles.resetCard}>
+              <Text variant="bodyStrong">Delete {client.full_name}’s account?</Text>
+              <Text variant="caption" color="textSecondary">
+                This permanently removes their plan, logged sessions, check-ins and pain history, and they can no
+                longer sign in. It cannot be undone — suspend instead if they might come back.
+              </Text>
+              <View style={styles.resetButtons}>
+                <Button
+                  label="Keep Account"
+                  variant="ghost"
+                  fullWidth={false}
+                  disabled={deleting}
+                  onPress={() => setConfirmDelete(false)}
+                />
+                <Button
+                  label="Delete for Good"
+                  variant="danger"
+                  fullWidth={false}
+                  loading={deleting}
+                  onPress={() => void removeAccount()}
+                />
+              </View>
+            </Card>
+          ) : (
+            <Button label="Delete Account" variant="danger" onPress={() => setConfirmDelete(true)} />
           )}
         </View>
       ) : null}

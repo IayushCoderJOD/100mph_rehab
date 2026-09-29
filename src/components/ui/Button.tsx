@@ -12,7 +12,8 @@ import { useHover } from '@/hooks/useHover';
 import { useTheme } from '@/theme';
 import { Text } from './Text';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost';
+/** `danger` is for the one-way actions — deleting an account — outlined in red rather than inviting. */
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 type ButtonProps = Omit<PressableProps, 'style'> & {
   label: string;
@@ -53,7 +54,7 @@ export function Button({
         {label}
       </Text>
     ) : (
-      <Text variant="button" color={variant === 'ghost' ? 'textPrimary' : 'accentText'}>
+      <Text variant="button" color={variant === 'ghost' ? 'textPrimary' : variant === 'danger' ? 'danger' : 'accentText'}>
         {label}
       </Text>
     );
@@ -91,9 +92,11 @@ export function Button({
               borderColor:
                 variant === 'secondary'
                   ? theme.colors.accentBorder
-                  : lifted
-                    ? theme.colors.borderStrong
-                    : theme.colors.border,
+                  : variant === 'danger'
+                    ? theme.colors.danger
+                    : lifted
+                      ? theme.colors.borderStrong
+                      : theme.colors.border,
               // An outlined button has no fill to brighten, so hover fills it
               // instead — the border alone is too quiet to register.
               backgroundColor:
@@ -105,7 +108,11 @@ export function Button({
             },
           ]}
         >
-          {loading ? <ActivityIndicator color={theme.colors.textPrimary} /> : content}
+          {loading ? (
+            <ActivityIndicator color={variant === 'danger' ? theme.colors.danger : theme.colors.textPrimary} />
+          ) : (
+            content
+          )}
         </View>
       )}
     </Pressable>

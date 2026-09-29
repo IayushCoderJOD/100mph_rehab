@@ -20,11 +20,19 @@
       "channel": "preview",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://one00mph-api.onrender.com/v1",
+        "EXPO_PUBLIC_MEDIA_BASE_URL": "https://pub-0fc48281a80340ad9f8bb01fdd4304a3.r2.dev"
       }
     },
     "production": {
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://one00mph-api.onrender.com/v1",
+        "EXPO_PUBLIC_MEDIA_BASE_URL": "https://pub-0fc48281a80340ad9f8bb01fdd4304a3.r2.dev"
+      }
     }
   },
   "submit": {

@@ -11,7 +11,7 @@ import { useTheme } from '@/theme';
 export default function LoginScreen() {
   const { theme } = useTheme();
   const router = useRouter();
-  const { signInWithPassword, error: authError } = useAuth();
+  const { signInWithPassword, error: authError, notice } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -85,6 +85,11 @@ export default function LoginScreen() {
         ) : null}
       </View>
 
+      {notice && !(error ?? authError) ? (
+        <Text variant="caption" color="accentText" style={styles.error}>
+          {notice}
+        </Text>
+      ) : null}
       {error ?? authError ? (
         <Text variant="caption" color="danger" style={styles.error}>
           {error ?? authError}

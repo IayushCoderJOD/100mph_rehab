@@ -46,6 +46,8 @@ type DirectoryContextValue = {
   summaryById: (id: string | null) => ClientSummary | null;
   createUser: (input: CreateUserInput) => Promise<Result<User>>;
   setUserStatus: (userId: string, status: UserStatus) => Promise<Result<User>>;
+  /** Deletes the account and all of its data; the client leaves the roster at once. */
+  deleteUser: (userId: string) => Promise<Result>;
   assignExercises: (userId: string, lines: AssignLine[], note: string) => Promise<BatchResult>;
   removeAssignment: (userId: string, assignmentId: string) => Promise<Result>;
   replacePlan: (userId: string, payload: UpdatePlanPayload) => Promise<Result<WeeklyPlanResponse>>;
@@ -137,6 +139,16 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
     [patchUser]
   );
 
+  const deleteUser = useCallback(async (userId: string): Promise<Result> => {
+    try {
+      await adminApi.deleteUser(userId);
+      setRoster((current) => current.filter((row) => row.user.id !== userId));
+      return { ok: true, value: undefined };
+    } catch (err) {
+      return { ok: false, error: messageFor(err) };
+    }
+  }, []);
+
   const assignExercises = useCallback(
     async (userId: string, lines: AssignLine[], note: string): Promise<BatchResult> => {
       const created: AssignedExerciseResponse[] = [];
@@ -207,6 +219,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       summaryById: (id) => (id ? (roster.find((row) => row.user.id === id) ?? null) : null),
       createUser,
       setUserStatus,
+      deleteUser,
       assignExercises,
       removeAssignment,
       replacePlan,
@@ -219,6 +232,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       currentUser,
       createUser,
       setUserStatus,
+      deleteUser,
       assignExercises,
       removeAssignment,
       replacePlan,

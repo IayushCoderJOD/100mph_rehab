@@ -7,7 +7,7 @@ import { ApiError, UpdateExercisePayload, adminApi, messageFor } from '@/api';
 import { PageHeader } from '@/components/common';
 import { TextField } from '@/components/form';
 import { VideoPoster } from '@/components/session';
-import { Button, Card, Screen, Text } from '@/components/ui';
+import { Button, Card, Loader, Screen, Text } from '@/components/ui';
 import { CATEGORY_LABEL, EXERCISE_CATEGORIES, Exercise, ExerciseCategory } from '@/data';
 import {
   MAX_SOURCE_MINUTES,
@@ -414,11 +414,15 @@ function ExerciseEditor() {
     return (
       <Screen scroll>
         <PageHeader title="Exercise" onBack={dismiss} />
-        <Card style={styles.missing}>
-          <Text variant="caption" color="textSecondary" align="center">
-            {library.loading ? 'Loading…' : 'This exercise is not in the library.'}
-          </Text>
-        </Card>
+        {library.loading ? (
+          <Loader />
+        ) : (
+          <Card style={styles.missing}>
+            <Text variant="caption" color="textSecondary" align="center">
+              This exercise is not in the library.
+            </Text>
+          </Card>
+        )}
       </Screen>
     );
   }

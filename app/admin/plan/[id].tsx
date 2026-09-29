@@ -13,7 +13,7 @@ import {
 import { adminApi } from '@/api';
 import { PageHeader } from '@/components/common';
 import { WeeklyPlanEditor } from '@/components/plan';
-import { Button, Card, Screen, Text } from '@/components/ui';
+import { Button, Card, Loader, Screen, Text } from '@/components/ui';
 import { DAY_LABEL, mock } from '@/data';
 import { useDirectory } from '@/directory/DirectoryProvider';
 import { useExerciseLibrary } from '@/exercises';
@@ -79,11 +79,7 @@ function PlanEditorScreen() {
           <Button label="Try again" variant="secondary" onPress={() => void remote.reload()} style={styles.retry} />
         </Card>
       ) : !draft ? (
-        <Card style={styles.notice}>
-          <Text variant="caption" color="textSecondary" align="center">
-            Loading the week…
-          </Text>
-        </Card>
+        <Loader />
       ) : (
         <View style={styles.editor}>
           <WeeklyPlanEditor

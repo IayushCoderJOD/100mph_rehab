@@ -74,6 +74,7 @@ const MESSAGES: Record<string, string> = {
   exercise_not_found: 'One of those exercises is no longer in the catalogue.',
   schedule_invalid_day: 'One of the days in that week is not valid.',
   already_assigned: 'That exercise is already assigned to this client.',
+  last_admin: 'This is the practice’s only admin account, so it cannot be deleted. Create another admin account first.',
   unsupported_media: 'That file cannot be used. Upload an MP4 video of up to 150 MB.',
   upload_not_found: 'The upload did not finish. Please try again.',
   media_not_configured: 'Video uploads are not set up on the server yet.',

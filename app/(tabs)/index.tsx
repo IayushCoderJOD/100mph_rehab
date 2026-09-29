@@ -6,7 +6,7 @@ import { useCheckIns } from '@/checkin/CheckInProvider';
 import { AppHeader, ThemeToggle } from '@/components/common';
 import { CheckInRow, PracticeOverview, WeekStrip, WorkoutCompleteCard } from '@/components/home';
 import { SessionSummaryCard } from '@/components/session';
-import { Button, Card, Logo, Screen, Text } from '@/components/ui';
+import { Button, Card, Loader, Logo, Screen, Text } from '@/components/ui';
 import { DAY_LABEL, firstName } from '@/data';
 import { usePlan } from '@/plan/PlanProvider';
 
@@ -70,11 +70,7 @@ export default function HomeScreen() {
               <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.noticeAction} />
             </Card>
           ) : loading && !plan ? (
-            <Card variant="alt" style={styles.notice}>
-              <Text variant="caption" color="textSecondary" align="center">
-                Loading your week…
-              </Text>
-            </Card>
+            <Loader />
           ) : !hasPlan ? (
             <Card variant="alt" style={styles.notice}>
               <Text variant="heading" align="center">

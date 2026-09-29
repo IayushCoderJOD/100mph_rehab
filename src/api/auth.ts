@@ -70,6 +70,15 @@ export const authApi = {
    * Replaces the member's own password. The server ends every other session
    * and hands this device a fresh pair, which is stored so it stays signed in.
    */
+  /**
+   * Deletes the signed-in account and everything recorded about it, for good.
+   * The server ends every session with it, so this device only forgets its tokens.
+   */
+  async deleteAccount(password: string): Promise<void> {
+    await api.delete<void>(endpoints.me.root, { password });
+    await tokenStore.clear();
+  },
+
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
     const body = await api.put<AuthResponse>(endpoints.me.password, {
       current_password: currentPassword,
@@ -160,6 +169,9 @@ export const adminApi = {
     api.patch<User>(endpoints.admin.userStatus(userId), { status }),
 
   /** A new temporary password for a client who is locked out. Signs them out everywhere. */
+  /** Deletes a client's account and all of their data. Suspending is the reversible option. */
+  deleteUser: (userId: string) => api.delete<void>(endpoints.admin.user(userId)),
+
   setUserPassword: (userId: string, password: string) =>
     api.put<void>(endpoints.admin.userPassword(userId), { password }),
 
