@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import { UploadTicket, adminApi } from '@/api';
 import { Exercise } from '@/data';
-import { PrepProgress, UploadCancelled, VideoPlan, planVideo, prepareVideo } from './videoPrep';
+import { PrepProgress, UploadCancelled, VideoPlan, hasSoundTrack, planVideo, prepareVideo } from './videoPrep';
 
 export { MAX_SOURCE_MINUTES, UploadCancelled } from './videoPrep';
 export type { VideoPlan } from './videoPrep';
@@ -26,6 +26,8 @@ export type UploadResult = {
   /** The size of the MP4 that was sent. */
   sentBytes: number;
   compressed: boolean;
+  /** The sent file has sound, and members hear it. False when it was removed, or there was none to keep. */
+  hasSound: boolean;
 };
 
 /** Some browsers leave File.type empty; the extension is the next best thing. */
@@ -160,10 +162,15 @@ export async function checkVideoFile(file: File): Promise<VideoPlan> {
  * Replacing is the same call. The exercise keeps its current video until the
  * new file has fully landed and the API has checked it, so a failed or
  * cancelled upload leaves members exactly where they were.
+ *
+ * With keepSound the clip's sound is kept and members hear it (it can be
+ * muted later without uploading again). Without it the sound is removed from
+ * the file, so it cannot be turned on later — that takes a new upload.
  */
 export async function uploadExerciseVideo(
   exerciseId: string,
   file: File,
+  keepSound: boolean,
   onStage: (stage: UploadStage) => void,
   signal?: AbortSignal
 ): Promise<UploadResult> {
@@ -174,7 +181,7 @@ export async function uploadExerciseVideo(
   try {
     onStage({ step: 'checking' });
     const plan = await planVideo(file);
-    const video = await prepareVideo(file, plan, onStage, signal);
+    const video = await prepareVideo(file, plan, keepSound, onStage, signal);
     if (video.size > MAX_VIDEO_MB * 1024 * 1024) {
       throw new Error(
         `Even compressed, this video is ${Math.round(video.size / 1024 / 1024)} MB — the limit is ${MAX_VIDEO_MB} MB. ` +
@@ -184,6 +191,8 @@ export async function uploadExerciseVideo(
 
     onStage({ step: 'checking' });
     const check = await inspectVideo(video);
+    // Asked of the file being sent: a clip filmed with no sound has none to keep.
+    const hasSound = keepSound && (await hasSoundTrack(video));
     if (signal?.aborted) throw new UploadCancelled();
 
     const ticket = await adminApi.requestUpload('video', video.type, video.size, video.name);
@@ -209,8 +218,10 @@ export async function uploadExerciseVideo(
     const exercise = await adminApi.updateExercise(exerciseId, {
       video_key: ticket.key,
       thumbnail_key: posterKey ?? '',
+      video_has_sound: hasSound,
+      sound_on: hasSound,
     });
-    return { exercise, sentBytes: video.size, compressed: plan.action === 'compress' };
+    return { exercise, sentBytes: video.size, compressed: plan.action === 'compress', hasSound };
   } finally {
     release();
   }

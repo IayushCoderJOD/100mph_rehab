@@ -71,7 +71,7 @@ export function ExerciseGuide({ exercise, method }: ExerciseGuideProps) {
 
   return (
     <>
-      <VideoPoster videoUrl={exercise.video_url} posterUrl={exercise.thumbnail_url} />
+      <VideoPoster videoUrl={exercise.video_url} posterUrl={exercise.thumbnail_url} sound={!!exercise.sound_on} />
 
       <Text variant="display" style={styles.name}>
         {exercise.name}

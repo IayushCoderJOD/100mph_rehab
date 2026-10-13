@@ -1,9 +1,11 @@
-import type { InputVideoTrack } from 'mediabunny';
+import type { InputAudioTrack, InputVideoTrack } from 'mediabunny';
 
 /**
  * Turns whatever video an admin picks into the one kind every member's device
- * plays: H.264 in an MP4, at most 720p and 30 fps, with no sound and no
- * metadata — the same thing scripts/encode-demos.sh makes of the bundled demos.
+ * plays: H.264 in an MP4, at most 720p and 30 fps, with no metadata — the
+ * same thing scripts/encode-demos.sh makes of the bundled demos. The sound is
+ * removed too, unless the admin asks to keep it; kept sound is AAC, which
+ * every browser and phone plays.
  *
  * Phones record 1080p or 4K, often in HEVC, at 10–40 Mbit/s. Sent as-is that
  * is slow to start on mobile data, and HEVC does not play in every browser at
@@ -20,7 +22,9 @@ import type { InputVideoTrack } from 'mediabunny';
  *   (and cached by the browser after that).
  *
  * A clip that is already small H.264 is not re-encoded, which would only lose
- * quality: its video is copied as-is and just the sound and metadata go.
+ * quality: its video is copied as-is and just the metadata (and the sound,
+ * unless kept) go. Kept sound is copied as-is too when it is already AAC, as
+ * a phone's always is.
  */
 
 /** A delivered frame is at most 1280×720 landscape, 720×1280 portrait. */
@@ -53,10 +57,14 @@ export class UploadCancelled extends Error {
 }
 
 export type VideoPlan = {
-  /** 'copy': already small H.264, so only the sound and metadata are dropped. 'compress': re-encoded here. */
+  /** 'copy': already small H.264, so only the metadata (and maybe the sound) are dropped. 'compress': re-encoded here. */
   action: 'copy' | 'compress';
   /** This browser cannot decode the file, so the slow WebAssembly converter does it. */
   slow: boolean;
+  /** The file has sound that could be kept. Null when it could not be read ahead of time. */
+  hasSound: boolean | null;
+  /** Keeping the sound needs the slow converter: it is not AAC, and this browser cannot make AAC from it. */
+  soundSlow: boolean;
   /** As members will see it, rotation applied. 0 when the file could not be read ahead of time. */
   width: number;
   height: number;
@@ -91,6 +99,8 @@ function bitrateFor(size: Size | null): number {
 const UNREADABLE_AHEAD: VideoPlan = {
   action: 'compress',
   slow: true,
+  hasSound: null,
+  soundSlow: false,
   width: 0,
   height: 0,
   fps: null,
@@ -149,9 +159,13 @@ export async function planVideo(file: File): Promise<VideoPlan> {
     const encodable =
       alreadySmall || (await mb.canEncodeVideo('avc', { width: target.width, height: target.height, bitrate: bitrateFor(target) }));
 
+    const audio = await input.getPrimaryAudioTrack().catch(() => null);
+
     return {
       action: alreadySmall ? 'copy' : 'compress',
       slow: !alreadySmall && !(decodable && encodable),
+      hasSound: !!audio,
+      soundSlow: audio ? !(await canMakeAac(audio)) : false,
       width,
       height,
       fps,
@@ -159,6 +173,31 @@ export async function planVideo(file: File): Promise<VideoPlan> {
       codecLabel: track.codec ? (CODEC_LABEL[track.codec] ?? track.codec.toUpperCase()) : null,
       target,
     };
+  } finally {
+    input.dispose();
+  }
+}
+
+/** Whether the browser can deliver this sound as AAC: copied as it is, or re-encoded here. */
+async function canMakeAac(audio: InputAudioTrack): Promise<boolean> {
+  if (audio.codec === 'aac') return true;
+  const mb = await import('mediabunny');
+  if (!(await audio.canDecode())) return false;
+  // Mediabunny falls back to plain stereo at 48 kHz when the source's own layout cannot be encoded.
+  return (
+    (await mb.canEncodeAudio('aac', { numberOfChannels: audio.numberOfChannels, sampleRate: audio.sampleRate })) ||
+    (await mb.canEncodeAudio('aac', { numberOfChannels: 2, sampleRate: 48000 }))
+  );
+}
+
+/** Whether a file has a sound track — asked of the converted file, so it is what members actually get. */
+export async function hasSoundTrack(file: Blob): Promise<boolean> {
+  const mb = await import('mediabunny');
+  const input = new mb.Input({ source: new mb.BlobSource(file), formats: mb.ALL_FORMATS });
+  try {
+    return (await input.getPrimaryAudioTrack()) !== null;
+  } catch {
+    return false;
   } finally {
     input.dispose();
   }
@@ -181,12 +220,14 @@ function remainingTime(): (progress: number) => number | null {
 export async function prepareVideo(
   file: File,
   plan: VideoPlan,
+  keepSound: boolean,
   onProgress: (progress: PrepProgress) => void,
   signal?: AbortSignal
 ): Promise<File> {
   const name = `${file.name.replace(/\.[^./]+$/, '') || 'video'}.mp4`;
-  const fast = plan.slow ? null : await convertInBrowser(file, plan, onProgress, signal);
-  const bytes = fast ?? (await convertWithFfmpeg(file, plan, onProgress, signal));
+  const slow = plan.slow || (keepSound && plan.soundSlow);
+  const fast = slow ? null : await convertInBrowser(file, plan, keepSound, onProgress, signal);
+  const bytes = fast ?? (await convertWithFfmpeg(file, plan, keepSound, onProgress, signal));
   return new File([bytes], name, { type: 'video/mp4' });
 }
 
@@ -194,6 +235,7 @@ export async function prepareVideo(
 async function convertInBrowser(
   file: File,
   plan: VideoPlan,
+  keepSound: boolean,
   onProgress: (progress: PrepProgress) => void,
   signal?: AbortSignal
 ): Promise<ArrayBuffer | null> {
@@ -209,7 +251,8 @@ async function convertInBrowser(
       showWarnings: false,
       // No tags at all: a phone writes where the clip was filmed into the file.
       tags: {},
-      audio: { discard: true },
+      // AAC is copied as it is; anything else is re-encoded to it.
+      audio: keepSound ? { codec: 'aac' } : { discard: true },
       video:
         plan.action === 'copy' || !plan.target
           ? {}
@@ -224,6 +267,10 @@ async function convertInBrowser(
             },
     });
     if (!conversion.isValid) return null;
+    // Asked to keep the sound but this browser could not: ffmpeg can.
+    if (keepSound && conversion.discardedTracks.some((d) => d.track.isAudioTrack() && d.reason !== 'discarded_by_user')) {
+      return null;
+    }
 
     const left = remainingTime();
     conversion.onProgress = (progress) =>
@@ -247,7 +294,7 @@ async function convertInBrowser(
   }
 }
 
-function ffmpegArgs(plan: VideoPlan): string[] {
+function ffmpegArgs(plan: VideoPlan, keepSound: boolean): string[] {
   const target = plan.target;
   // When the size was not known ahead of time, the same bound as an ffmpeg expression.
   const fit = `min(1,${SHORT_SIDE}/min(iw,ih),${LONG_SIDE}/max(iw,ih))`;
@@ -256,14 +303,26 @@ function ffmpegArgs(plan: VideoPlan): string[] {
     : `scale='trunc(iw*${fit}/2)*2':'trunc(ih*${fit}/2)*2'`;
   // The same ceiling encode-demos.sh uses: 2 Mbit/s peaks for 720p.
   const maxrate = Math.round((bitrateFor(target) * 4) / 3);
+  // A clip that only needs copying gets here when the browser could not
+  // handle its sound (or failed outright). Its picture is fine as it is, so it
+  // is copied rather than slowly re-encoded for nothing.
+  const video =
+    plan.action === 'copy'
+      ? ['-c:v', 'copy']
+      : [
+          '-vf', scale,
+          '-fpsmax', String(MAX_FPS),
+          '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
+          '-maxrate', String(maxrate), '-bufsize', String(maxrate * 2),
+          '-profile:v', 'high', '-pix_fmt', 'yuv420p',
+        ];
+  // '?' so a clip with no sound still converts.
+  const audio = keepSound ? ['-map', '0:a:0?', '-c:a', 'aac', '-b:a', '128k', '-ac', '2'] : ['-an'];
   return [
     '-map', '0:v:0',
-    '-vf', scale,
-    '-fpsmax', String(MAX_FPS),
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
-    '-maxrate', String(maxrate), '-bufsize', String(maxrate * 2),
-    '-profile:v', 'high', '-pix_fmt', 'yuv420p',
-    '-an', '-sn', '-dn',
+    ...video,
+    ...audio,
+    '-sn', '-dn',
     '-map_metadata', '-1', '-map_chapters', '-1',
     '-movflags', '+faststart',
     '-f', 'mp4',
@@ -334,6 +393,7 @@ type WorkerMessage =
 function convertWithFfmpeg(
   file: File,
   plan: VideoPlan,
+  keepSound: boolean,
   onProgress: (progress: PrepProgress) => void,
   signal?: AbortSignal
 ): Promise<ArrayBuffer> {
@@ -393,7 +453,7 @@ function convertWithFfmpeg(
       wasmURL: FFMPEG_WASM_URL,
       wasmBytes: FFMPEG_WASM_BYTES,
       file,
-      args: ffmpegArgs(plan),
+      args: ffmpegArgs(plan, keepSound),
     });
   });
 }

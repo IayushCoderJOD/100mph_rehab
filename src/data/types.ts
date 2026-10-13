@@ -164,6 +164,10 @@ export interface Exercise {
   suggested_sets?: string | null;
   /** Out of the picker, still on plans that use it. From the API's library. */
   hidden?: boolean;
+  /** The video file has a sound track. The bundled demos never do. */
+  video_has_sound?: boolean;
+  /** Members hear the video. Off, or missing, plays it muted. */
+  sound_on?: boolean;
 }
 
 /** Which exercises make up a session type, in the order they are performed. */

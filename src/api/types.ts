@@ -189,6 +189,10 @@ export type UpdateExercisePayload = Partial<ExerciseFields> & {
   video_key?: string;
   /** Empty string removes the poster. */
   thumbnail_key?: string;
+  /** Sent with video_key: the new file has a sound track. */
+  video_has_sound?: boolean;
+  /** Members hear the video. Only accepted for a video that has sound; a new video starts muted without it. */
+  sound_on?: boolean;
 };
 
 export type UploadKind = 'video' | 'poster';

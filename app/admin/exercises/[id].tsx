@@ -93,8 +93,8 @@ function formatDuration(seconds: number): string {
 }
 
 /** What will happen to the chosen file, in a line. */
-function describePlan(plan: VideoPlan): string {
-  if (plan.action === 'copy') return 'Already small — sent as it is, without the sound';
+function describePlan(plan: VideoPlan, keepSound: boolean): string {
+  if (plan.action === 'copy') return keepSound ? 'Already small — sent as it is' : 'Already small — sent as it is, without the sound';
   if (!plan.target) return 'Will be converted to MP4 before it uploads';
   const shrinking = plan.target.width < plan.width || plan.target.height < plan.height;
   const short = Math.min(plan.target.width, plan.target.height);
@@ -102,19 +102,31 @@ function describePlan(plan: VideoPlan): string {
 }
 
 /** Tells the admin up front when the slow converter is the one that will run, and what to do about it. */
-function slowWarning(plan: VideoPlan): string | null {
-  if (plan.action !== 'compress' || !plan.slow) return null;
-  const format = plan.codecLabel ? `${plan.codecLabel} video` : 'this kind of video';
-  return (
-    `This browser cannot read ${format} directly, so converting it can take several minutes — keep this tab open. ` +
-    'Chrome or Safari on a phone, Mac or Windows computer is usually much faster.'
-  );
+function slowWarning(plan: VideoPlan, keepSound: boolean): string | null {
+  if (plan.action === 'compress' && plan.slow) {
+    const format = plan.codecLabel ? `${plan.codecLabel} video` : 'this kind of video';
+    return (
+      `This browser cannot read ${format} directly, so converting it can take several minutes — keep this tab open. ` +
+      'Chrome or Safari on a phone, Mac or Windows computer is usually much faster.'
+    );
+  }
+  if (keepSound && plan.soundSlow) {
+    return (
+      'This browser cannot convert this clip’s sound itself, so keeping it can take a few minutes — keep this tab open. ' +
+      'Turning the sound off, or Chrome or Safari on a phone, Mac or Windows computer, is quicker.'
+    );
+  }
+  return null;
 }
 
-function sizeNote(original: File, result: UploadResult): string {
-  return result.compressed && result.sentBytes < original.size
-    ? ` Compressed from ${formatSize(original.size)} to ${formatSize(result.sentBytes)}.`
-    : '';
+/** What to add to the "uploaded" message: how much smaller it got, and a clip that turned out to have no sound. */
+function resultNote(original: File, result: UploadResult, keepSound: boolean): string {
+  const size =
+    result.compressed && result.sentBytes < original.size
+      ? ` Compressed from ${formatSize(original.size)} to ${formatSize(result.sentBytes)}.`
+      : '';
+  const silent = keepSound && !result.hasSound ? ' The clip has no sound, so it plays silent.' : '';
+  return size + silent;
 }
 
 function CategoryChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
@@ -194,6 +206,39 @@ function UploadProgress({ stage, onCancel }: { stage: UploadStage; onCancel: () 
   );
 }
 
+function SwitchRow({
+  title,
+  caption,
+  value,
+  onValueChange,
+  disabled,
+}: {
+  title: string;
+  caption: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+  disabled: boolean;
+}) {
+  const { theme } = useTheme();
+  return (
+    <View style={styles.switchRow}>
+      <View style={styles.switchText}>
+        <Text variant="bodyStrong">{title}</Text>
+        <Text variant="caption" color="textSecondary">
+          {caption}
+        </Text>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        trackColor={{ true: theme.colors.accent, false: theme.colors.borderStrong }}
+        accessibilityLabel={title}
+      />
+    </View>
+  );
+}
+
 function describe(err: unknown): string {
   if (err instanceof ApiError) return messageFor(err);
   if (err instanceof Error) return err.message;
@@ -205,8 +250,8 @@ function describe(err: unknown): string {
  * pick it. The same screen adds a new movement (/admin/exercises/new).
  *
  * The text and the video are separate on purpose. "Save Changes" only ever
- * saves text; the video has its own actions — upload, replace, remove — each
- * of which finishes on its own. So replacing a video never touches the name or
+ * saves text; the video has its own actions — upload, replace, remove, sound
+ * on or off — each of which finishes on its own. So replacing a video never touches the name or
  * instructions, and a slow upload never holds the form hostage.
  *
  * Replacing is safe to do on a movement clients are using: the current video
@@ -235,6 +280,10 @@ function ExerciseEditor() {
   // ---- the video
   const [file, setFile] = useState<File | null>(null);
   const [filePlan, setFilePlan] = useState<VideoPlan | null>(null);
+  /** Keep the chosen file's sound. Off unless the video it replaces had sound on. */
+  const [keepSound, setKeepSound] = useState(false);
+  /** The sound switch's new position while it saves, so it moves the moment it is tapped. */
+  const [soundSaving, setSoundSaving] = useState<boolean | null>(null);
   const [checkingFile, setCheckingFile] = useState(false);
   const [stage, setStage] = useState<UploadStage | null>(null);
   const [videoBusy, setVideoBusy] = useState(false);
@@ -267,7 +316,9 @@ function ExerciseEditor() {
   const textDirty = isNew || hiddenChanged || (!!patch && Object.keys(patch).length > 0);
   const busy = saving || videoBusy || checkingFile;
   const hasVideo = !!existing?.video_url;
-  const slowNote = file && filePlan ? slowWarning(filePlan) : null;
+  const fileHasSound = filePlan?.hasSound !== false;
+  const slowNote = file && filePlan ? slowWarning(filePlan, keepSound && fileHasSound) : null;
+  const soundOn = soundSaving ?? !!existing?.sound_on;
 
   const clearFile = () => {
     setFile(null);
@@ -289,6 +340,7 @@ function ExerciseEditor() {
       const plan = await checkVideoFile(chosen);
       setFile(chosen);
       setFilePlan(plan);
+      setKeepSound(!!existing?.sound_on && plan.hasSound !== false);
     } catch (err) {
       clearFile();
       setVideoError(describe(err));
@@ -303,7 +355,7 @@ function ExerciseEditor() {
     const controller = new AbortController();
     abort.current = controller;
     try {
-      const result = await uploadExerciseVideo(exerciseId, file, setStage, controller.signal);
+      const result = await uploadExerciseVideo(exerciseId, file, keepSound && fileHasSound, setStage, controller.signal);
       library.remember(result.exercise);
       clearFile();
       return result;
@@ -325,7 +377,7 @@ function ExerciseEditor() {
           ? 'Video replaced. Clients see the new one from now on.'
           : result.exercise.hidden
             ? 'Video uploaded. The exercise is still hidden from the picker.'
-            : 'Video uploaded — this exercise can now be added to weeks.') + sizeNote(file, result)
+            : 'Video uploaded — this exercise can now be added to weeks.') + resultNote(file, result, keepSound)
       );
     } catch (err) {
       setVideoError(
@@ -358,6 +410,24 @@ function ExerciseEditor() {
     }
   };
 
+  /** Mutes or unmutes the current video for members. The file is not touched. */
+  const setSound = async (on: boolean) => {
+    if (!existing || busy) return;
+    setSoundSaving(on);
+    setVideoBusy(true);
+    clearVideoMessages();
+    try {
+      const saved = await adminApi.updateExercise(existing.id, { sound_on: on });
+      library.remember(saved);
+      setVideoNotice(on ? 'Sound on — members hear this video.' : 'Muted — members watch this video without sound.');
+    } catch (err) {
+      setVideoError(describe(err));
+    } finally {
+      setSoundSaving(null);
+      setVideoBusy(false);
+    }
+  };
+
   const save = async () => {
     if (problems.length > 0 || busy || !textDirty) return;
     setSaving(true);
@@ -384,7 +454,9 @@ function ExerciseEditor() {
           clearVideoMessages();
           try {
             const result = await uploadTo(created.id);
-            setNotice('Created. The video is live — this exercise can now be added to weeks.' + sizeNote(file, result));
+            setNotice(
+              'Created. The video is live — this exercise can now be added to weeks.' + resultNote(file, result, keepSound)
+            );
           } catch (err) {
             setNotice('Created as a draft.');
             setVideoError(
@@ -468,7 +540,23 @@ function ExerciseEditor() {
               videoUrl={existing.video_url}
               posterUrl={existing.thumbnail_url}
               caption="What members see"
+              sound={soundOn}
             />
+            {!file && !confirmRemove ? (
+              <SwitchRow
+                title="Play with sound"
+                caption={
+                  !existing.video_has_sound
+                    ? 'This video was uploaded without sound. To add it, replace the video and keep the sound on.'
+                    : soundOn
+                      ? 'Members hear this video’s sound.'
+                      : 'Muted — members watch it without sound.'
+                }
+                value={soundOn}
+                onValueChange={(on) => void setSound(on)}
+                disabled={readOnly || busy || !existing.video_has_sound}
+              />
+            ) : null}
           </View>
         ) : !file ? (
           <View style={styles.noVideo}>
@@ -501,11 +589,27 @@ function ExerciseEditor() {
               </Text>
               {filePlan && !stage ? (
                 <Text variant="caption" color="textSecondary">
-                  {describePlan(filePlan)}
+                  {describePlan(filePlan, keepSound && fileHasSound)}
                 </Text>
               ) : null}
             </View>
           </View>
+        ) : null}
+
+        {file && filePlan ? (
+          <SwitchRow
+            title="Keep the sound"
+            caption={
+              !fileHasSound
+                ? 'This clip has no sound.'
+                : keepSound
+                  ? 'Members hear it. You can mute it later without uploading again.'
+                  : 'Removed from the video — members watch it without sound.'
+            }
+            value={keepSound && fileHasSound}
+            onValueChange={setKeepSound}
+            disabled={busy || !fileHasSound}
+          />
         ) : null}
 
         {slowNote ? (
@@ -619,7 +723,7 @@ function ExerciseEditor() {
         {!readOnly && canUploadHere ? (
           <Text variant="caption" color="textMuted" align="center">
             Any video from a phone or camera, up to {MAX_SOURCE_MINUTES} minutes. It is resized to 720p and compressed
-            before it uploads, and the sound is removed — members never hear it.
+            before it uploads. The sound is removed unless you choose to keep it.
           </Text>
         ) : null}
       </Card>
@@ -675,21 +779,13 @@ function ExerciseEditor() {
       {/* ---- Availability ---- */}
       {!isNew ? (
         <Card style={styles.section}>
-          <View style={styles.switchRow}>
-            <View style={styles.switchText}>
-              <Text variant="bodyStrong">Hide from the picker</Text>
-              <Text variant="caption" color="textSecondary">
-                Coaches cannot add it to new weeks. Clients who already have it keep it.
-              </Text>
-            </View>
-            <Switch
-              value={hidden}
-              onValueChange={setHidden}
-              disabled={readOnly || busy}
-              trackColor={{ true: theme.colors.accent, false: theme.colors.borderStrong }}
-              accessibilityLabel="Hide from the picker"
-            />
-          </View>
+          <SwitchRow
+            title="Hide from the picker"
+            caption="Coaches cannot add it to new weeks. Clients who already have it keep it."
+            value={hidden}
+            onValueChange={setHidden}
+            disabled={readOnly || busy}
+          />
         </Card>
       ) : null}
 

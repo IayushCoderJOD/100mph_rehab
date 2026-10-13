@@ -12,6 +12,8 @@ type VideoPosterProps = {
   /** The still shown before playback starts. Optional; the frame works without it. */
   posterUrl?: string | null;
   caption?: string;
+  /** Play with sound. Off by default: most demos have none, and the rest are muted unless an admin turns it on. */
+  sound?: boolean;
 };
 
 /**
@@ -24,7 +26,7 @@ type VideoPosterProps = {
  * second viewing of an exercise, and every viewing after it, costs nothing and
  * works with no signal at all, which is the normal condition of a gym.
  */
-export function VideoPoster({ videoUrl, posterUrl, caption }: VideoPosterProps) {
+export function VideoPoster({ videoUrl, posterUrl, caption, sound = false }: VideoPosterProps) {
   const { theme } = useTheme();
   const [started, setStarted] = useState(false);
 
@@ -38,10 +40,15 @@ export function VideoPoster({ videoUrl, posterUrl, caption }: VideoPosterProps) 
     // Demos are short and read better on repeat than they do paused on the
     // last frame, so the loop is the resting state rather than a preference.
     instance.loop = true;
-    // Demos are silent by design. The hand-encoded ones have no audio track,
-    // but a video an admin uploads from the app may, so mute it here.
-    instance.muted = true;
+    // Muted unless the admin chose sound for this video. The hand-encoded
+    // demos have no audio track either way.
+    instance.muted = !sound;
   });
+
+  // An admin toggling sound in the editor hears the change without restarting the clip.
+  useEffect(() => {
+    player.muted = !sound;
+  }, [player, sound]);
 
   useEffect(() => {
     if (started) player.play();
