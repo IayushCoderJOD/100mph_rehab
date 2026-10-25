@@ -15,6 +15,9 @@ export type SocialLink = {
   icon: string;
 };
 
+/** The app's own name. The practice is still 100mph; keep in step with app.json. */
+export const appName = '100mph : Go';
+
 export const supportEmail = '100mph@gmail.com';
 
 export const socialLinks: SocialLink[] = [

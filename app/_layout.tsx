@@ -9,13 +9,14 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ensureServerAwake } from '@/api';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { CheckInProvider } from '@/checkin/CheckInProvider';
 import { ServerWakeNotice } from '@/components/common';
+import { appName } from '@/config/brand';
 import { features } from '@/config/features';
 import { DirectoryProvider } from '@/directory/DirectoryProvider';
 import { ExerciseLibraryProvider } from '@/exercises';
@@ -90,6 +91,13 @@ export default function RootLayout() {
   // boots while the member is still reading the screen or typing a password.
   useEffect(() => {
     void ensureServerAwake();
+  }, []);
+
+  // Names the browser tab, bookmarks and "Add to Home Screen". Expo Router
+  // leaves the title blank and nothing else sets it, so once is enough. The
+  // installed apps take their name from app.json.
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') document.title = appName;
   }, []);
 
   if (!loaded) return null;

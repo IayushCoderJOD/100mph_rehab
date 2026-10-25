@@ -332,7 +332,7 @@ export const en = {
     support: 'Support',
     supportFootnote: (email: string) => `We answer every mail at ${email}.`,
     help: 'Help & Support',
-    follow: 'Follow 100mph',
+    follow: 'Follow 100mph : Go',
     logout: 'Logout',
     deleteAccount: 'Delete Account',
     deleteAccountSub: 'Permanently remove your account and data',

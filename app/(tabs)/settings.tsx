@@ -6,7 +6,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { LanguageSelect } from '@/components/common';
 import { SettingsRow, SettingsSection } from '@/components/settings';
 import { Button, Card, HeartBadge, Screen, SegmentedControl, Text } from '@/components/ui';
-import { socialLinks, supportEmail } from '@/config/brand';
+import { appName, socialLinks, supportEmail } from '@/config/brand';
 import { features } from '@/config/features';
 import { formatLongDate } from '@/data';
 import { useI18n } from '@/i18n';
@@ -147,7 +147,7 @@ export default function SettingsScreen() {
           subtitle={supportEmail}
           external
           onPress={() =>
-            openUrl(`mailto:${supportEmail}?subject=${encodeURIComponent('100mph app support')}`)
+            openUrl(`mailto:${supportEmail}?subject=${encodeURIComponent(`${appName} app support`)}`)
           }
         />
       </SettingsSection>

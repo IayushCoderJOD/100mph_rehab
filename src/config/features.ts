@@ -20,7 +20,7 @@ export const features = {
    */
   forgotPassword: false,
   /**
-   * Which Follow 100mph rows Settings shows, by id from brand.ts. Only the
+   * Which "Follow 100mph : Go" rows Settings shows, by id from brand.ts. Only the
    * confirmed accounts — the rest are placeholders that may point at accounts
    * that are not ours.
    */

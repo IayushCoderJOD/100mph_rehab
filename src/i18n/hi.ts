@@ -347,7 +347,7 @@ export const hi: Strings = {
     support: 'सहायता',
     supportFootnote: (email) => `हम ${email} पर आने वाले हर मेल का जवाब देते हैं।`,
     help: 'मदद और सहायता',
-    follow: '100mph को फ़ॉलो करें',
+    follow: '100mph : Go को फ़ॉलो करें',
     logout: 'लॉग आउट',
     deleteAccount: 'अकाउंट डिलीट करें',
     deleteAccountSub: 'अपना अकाउंट और डेटा हमेशा के लिए हटाएँ',

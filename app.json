@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "100mph",
+    "name": "100mph : Go",
     "slug": "rehab-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -25,8 +25,8 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "static",
-      "name": "100mph",
-      "shortName": "100mph",
+      "name": "100mph : Go",
+      "shortName": "100mph : Go",
       "description": "Your rehab training plan, written by your physio.",
       "lang": "en",
       "themeColor": "#0B0B0C",
