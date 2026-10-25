@@ -1,6 +1,7 @@
 import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { LearnContent } from '@/data';
 import { useHover } from '@/hooks/useHover';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 import { MediaThumb } from './MediaThumb';
@@ -20,8 +21,10 @@ type LessonCardProps = {
  * lesson is a glance, a longform is a sit-down, and the shape says which
  * before the title is read.
  */
-export function LessonCard({ content, onPress, style }: LessonCardProps) {
+export function LessonCard({ content: stored, onPress, style }: LessonCardProps) {
   const { theme } = useTheme();
+  const { localize } = useI18n();
+  const content = localize.lesson(stored);
   const { hovered, hoverProps } = useHover();
   const isMini = content.kind === 'mini_lesson';
 

@@ -1,12 +1,13 @@
 import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
-import { ROLE_LABEL, useAccess } from '@/access';
+import { useAccess } from '@/access';
 import { useAuth } from '@/auth/AuthProvider';
 import { PageHeader } from '@/components/common';
 import { DetailRow } from '@/components/settings';
 import { features } from '@/config/features';
 import { Button, Card, HeartBadge, Screen, Text } from '@/components/ui';
 import { ageFrom, formatLongDate } from '@/data';
+import { useI18n } from '@/i18n';
 import { useMembership } from '@/membership/MembershipProvider';
 import { useDismiss } from '@/navigation/useDismiss';
 
@@ -16,12 +17,14 @@ export default function AccountScreen() {
   const { plan, isActive } = useMembership();
   const { user } = useAuth();
   const { isAdmin, role } = useAccess();
+  const { t, localize } = useI18n();
+  const age = user ? ageFrom(user.date_of_birth) : null;
 
   return (
     <Screen scroll>
       <PageHeader
-        title="My Account"
-        subtitle={isAdmin ? 'Your admin details' : 'Your member details'}
+        title={t.account.title}
+        subtitle={isAdmin ? t.account.adminSub : t.account.memberSub}
         onBack={dismiss}
       />
 
@@ -32,25 +35,25 @@ export default function AccountScreen() {
         <View style={styles.identityText}>
           <Text variant="heading">{user.full_name}</Text>
           <Text variant="caption" color="textSecondary">
-            {isAdmin ? 'Admin since' : 'Member since'} {formatLongDate(user.member_since)}
+            {(isAdmin ? t.account.adminSince : t.common.memberSince)(formatLongDate(user.member_since))}
           </Text>
         </View>
       </Card>
 
       <Card style={styles.details}>
-        <DetailRow label="Email" value={user.email} />
-        <DetailRow label="Phone" value={user.phone || 'Not given'} />
+        <DetailRow label={t.common.email} value={user.email} />
+        <DetailRow label={t.common.phone} value={user.phone || t.common.notGiven} />
         <DetailRow
-          label="Joined"
+          label={t.common.joined}
           value={formatLongDate(user.member_since)}
           last={!isAdmin && !features.membership}
         />
         {isAdmin ? (
-          <DetailRow label="Role" value={role ? ROLE_LABEL[role] : '—'} last />
+          <DetailRow label={t.account.role} value={role ? t.roles[role] : '—'} last />
         ) : features.membership ? (
           <DetailRow
-            label="Membership"
-            value={`${plan.name}${isActive ? '' : ' · Cancelled'}`}
+            label={t.account.membership}
+            value={`${localize.plan(plan).name}${isActive ? '' : t.account.cancelledSuffix}`}
             last
           />
         ) : null}
@@ -59,18 +62,26 @@ export default function AccountScreen() {
       {!isAdmin ? (
         <>
           <Text variant="heading" style={styles.sectionTitle}>
-            Your Details
+            {t.account.yourDetails}
           </Text>
           <Card style={styles.details}>
+            <DetailRow label={t.common.age} value={age !== null ? `${age}` : t.common.notGiven} />
             <DetailRow
-              label="Age"
-              value={ageFrom(user.date_of_birth) !== null ? `${ageFrom(user.date_of_birth)}` : 'Not given'}
+              label={t.common.height}
+              value={user.height_cm != null ? t.common.cm(user.height_cm) : t.common.notGiven}
             />
-            <DetailRow label="Height" value={user.height_cm != null ? `${user.height_cm} cm` : 'Not given'} />
-            <DetailRow label="Weight" value={user.weight_kg != null ? `${user.weight_kg} kg` : 'Not given'} last />
+            <DetailRow
+              label={t.common.weight}
+              value={user.weight_kg != null ? t.common.kg(user.weight_kg) : t.common.notGiven}
+              last
+            />
           </Card>
           <Button
-            label={user.date_of_birth || user.height_cm != null || user.weight_kg != null ? 'Edit Details' : 'Add Your Details'}
+            label={
+              user.date_of_birth || user.height_cm != null || user.weight_kg != null
+                ? t.account.editDetails
+                : t.account.addDetails
+            }
             variant="secondary"
             onPress={() => router.push('/edit-profile')}
             style={styles.edit}
@@ -79,10 +90,10 @@ export default function AccountScreen() {
       ) : null}
 
           <Text variant="heading" style={styles.sectionTitle}>
-            Security
+            {t.account.security}
           </Text>
           <Button
-            label="Change Password"
+            label={t.account.changePassword}
             variant="secondary"
             onPress={() => router.push('/change-password')}
             style={styles.edit}
@@ -91,7 +102,7 @@ export default function AccountScreen() {
       )}
 
       <Text variant="caption" color="textMuted" style={styles.note}>
-        Need something here changed? Drop us a line from Help & Support and we will sort it out.
+        {t.account.note}
       </Text>
     </Screen>
   );

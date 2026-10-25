@@ -41,8 +41,3 @@ export function can(role: UserRole | null, permission: Permission): boolean {
 export function isAdmin(role: UserRole | null): boolean {
   return role === 'admin';
 }
-
-export const ROLE_LABEL: Record<UserRole, string> = {
-  member: 'Member',
-  admin: 'Admin',
-};

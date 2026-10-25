@@ -4,6 +4,7 @@ import { Modal, Pressable, ScrollView, SectionList, StyleSheet, View } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CATEGORY_LABEL, EXERCISE_CATEGORIES, Exercise, ExerciseCategory } from '@/data';
 import { useHover } from '@/hooks/useHover';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { TextField } from '../form/TextField';
 import { ExerciseGuide } from '../session/ExerciseGuide';
@@ -45,12 +46,13 @@ export function ExercisePicker({
   visible,
   exercises,
   lockedIds = [],
-  title = 'Add exercises',
-  confirmLabel = (count) => (count === 0 ? 'Select exercises' : `Add ${count} exercise${count === 1 ? '' : 's'}`),
+  title,
+  confirmLabel,
   onConfirm,
   onClose,
 }: ExercisePickerProps) {
   const { theme } = useTheme();
+  const { t, localize } = useI18n();
   const [query, setQuery] = useState('');
   const [shelf, setShelf] = useState<Shelf>('all');
   const [selected, setSelected] = useState<string[]>([]);
@@ -79,11 +81,13 @@ export function ExercisePicker({
   const term = query.trim().toLowerCase();
 
   const sections = useMemo<Section[]>(() => {
-    const matches = (e: Exercise) =>
+    // Rows show each movement in the reader's language, but a search in either
+    // language finds it: a coach reading Hindi still knows the English names.
+    const matches = (shown: Exercise, stored: Exercise) =>
       !term ||
-      e.name.toLowerCase().includes(term) ||
-      e.focus.toLowerCase().includes(term) ||
-      CATEGORY_LABEL[e.category].toLowerCase().includes(term);
+      [shown.name, shown.focus, stored.name, stored.focus, t.categories[stored.category], CATEGORY_LABEL[stored.category]].some(
+        (text) => (text ?? '').toLowerCase().includes(term)
+      );
 
     const byName = (a: Exercise, b: Exercise) => a.name.localeCompare(b.name);
     const categories = shelf === 'all' ? EXERCISE_CATEGORIES : [shelf];
@@ -91,11 +95,16 @@ export function ExercisePicker({
     return categories
       .map((category) => ({
         category,
-        title: CATEGORY_LABEL[category],
-        data: exercises.filter((e) => e.category === category && matches(e)).sort(byName),
+        title: t.categories[category],
+        data: exercises
+          .filter((e) => e.category === category)
+          .map((stored) => ({ stored, shown: localize.exercise(stored) }))
+          .filter(({ stored, shown }) => matches(shown, stored))
+          .map(({ shown }) => shown)
+          .sort(byName),
       }))
       .filter((s) => s.data.length > 0);
-  }, [exercises, shelf, term]);
+  }, [exercises, shelf, term, t, localize]);
 
   const shown = sections.reduce((n, s) => n + s.data.length, 0);
 
@@ -111,24 +120,24 @@ export function ExercisePicker({
               onPress={() => setPreviewId(null)}
               hitSlop={10}
               accessibilityRole="button"
-              accessibilityLabel="Back to the list"
+              accessibilityLabel={t.picker.back}
             >
               <Ionicons name="arrow-back" size={24} color={theme.colors.textPrimary} />
             </Pressable>
           ) : null}
           <View style={styles.headerText}>
-            <Text variant="heading">{preview ? 'Preview' : title}</Text>
+            <Text variant="heading">{preview ? t.picker.preview : (title ?? t.picker.title)}</Text>
             <Text variant="caption" color="textSecondary">
               {preview
-                ? CATEGORY_LABEL[preview.category]
+                ? t.categories[preview.category]
                 : selected.length > 0
-                  ? `${selected.length} selected`
+                  ? t.picker.selected(selected.length)
                   : shown === exercises.length
-                    ? `${exercises.length} in the catalogue`
-                    : `${shown} of ${exercises.length}`}
+                    ? t.picker.inCatalogue(exercises.length)
+                    : t.picker.shownOf(shown, exercises.length)}
             </Text>
           </View>
-          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={t.common.close}>
             <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
           </Pressable>
         </View>
@@ -146,7 +155,7 @@ export function ExercisePicker({
             <TextField
               value={query}
               onChangeText={setQuery}
-              placeholder="Search by name, muscle group or category"
+              placeholder={t.picker.search}
               autoCapitalize="none"
               autoFocus
             />
@@ -164,7 +173,7 @@ export function ExercisePicker({
             {shelves.map((s) => (
               <Chip
                 key={s}
-                label={s === 'all' ? 'All' : CATEGORY_LABEL[s]}
+                label={s === 'all' ? t.picker.all : t.categories[s]}
                 active={s === shelf}
                 onPress={() => setShelf(s)}
               />
@@ -181,13 +190,13 @@ export function ExercisePicker({
               <View style={styles.empty}>
                 <Text variant="caption" color="textMuted" align="center">
                   {shelf === 'all'
-                    ? `Nothing matches “${query.trim()}”.`
-                    : `Nothing in ${CATEGORY_LABEL[shelf]} matches “${query.trim()}”.`}
+                    ? t.picker.nothingMatches(query.trim())
+                    : t.picker.nothingIn(t.categories[shelf], query.trim())}
                 </Text>
                 {shelf !== 'all' ? (
                   <Pressable onPress={() => setShelf('all')} hitSlop={8} accessibilityRole="button">
                     <Text variant="label" color="accent" align="center">
-                      Search all categories
+                      {t.picker.searchAll}
                     </Text>
                   </Pressable>
                 ) : null}
@@ -248,7 +257,7 @@ export function ExercisePicker({
                         {item.name}
                       </Text>
                       <Text variant="caption" color="textSecondary" numberOfLines={1}>
-                        {isLocked ? 'Already on the list' : item.focus}
+                        {isLocked ? t.picker.alreadyOnList : item.focus}
                       </Text>
                     </View>
                   </Pressable>
@@ -268,10 +277,10 @@ export function ExercisePicker({
             <Button
               label={
                 locked.has(preview.id)
-                  ? 'Already on the list'
+                  ? t.picker.alreadyOnList
                   : selected.includes(preview.id)
-                    ? 'Remove from selection'
-                    : 'Select this exercise'
+                    ? t.picker.removeSelection
+                    : t.picker.selectThis
               }
               variant={selected.includes(preview.id) ? 'secondary' : 'primary'}
               disabled={locked.has(preview.id)}
@@ -284,7 +293,7 @@ export function ExercisePicker({
             />
           ) : (
             <Button
-              label={confirmLabel(selected.length)}
+              label={(confirmLabel ?? t.picker.confirm)(selected.length)}
               disabled={selected.length === 0}
               onPress={() => onConfirm(selected)}
             />
@@ -302,6 +311,7 @@ export function ExercisePicker({
  */
 function PreviewButton({ name, hasVideo, onPress }: { name: string; hasVideo: boolean; onPress: () => void }) {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const { hovered, hoverProps } = useHover();
 
   return (
@@ -310,7 +320,7 @@ function PreviewButton({ name, hasVideo, onPress }: { name: string; hasVideo: bo
       onPress={onPress}
       hitSlop={6}
       accessibilityRole="button"
-      accessibilityLabel={`Preview ${name}`}
+      accessibilityLabel={t.picker.previewA11y(name)}
       style={({ pressed }) => [
         styles.previewButton,
         {
@@ -327,7 +337,7 @@ function PreviewButton({ name, hasVideo, onPress }: { name: string; hasVideo: bo
         color={hasVideo ? theme.colors.accent : theme.colors.textSecondary}
       />
       <Text variant="label" color="textSecondary">
-        Preview
+        {t.picker.preview}
       </Text>
     </Pressable>
   );

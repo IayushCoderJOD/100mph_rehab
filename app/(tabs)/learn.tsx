@@ -5,11 +5,13 @@ import { Tile } from '@/components/common';
 import { LearnRail, LessonCard } from '@/components/learn';
 import { Card, Screen, Text } from '@/components/ui';
 import { groupLearnContent, mock } from '@/data';
+import { useI18n } from '@/i18n';
 import { useProgramData } from '@/program/programData';
 
 export default function LearnScreen() {
   const router = useRouter();
   const { program, learnContent } = useProgramData();
+  const { t, localize } = useI18n();
 
   const { miniLessons, longform } = useMemo(
     () => groupLearnContent(learnContent),
@@ -21,22 +23,18 @@ export default function LearnScreen() {
   return (
     <Screen scroll>
       <Text variant="title" align="center" style={styles.pageTitle}>
-        Learn
+        {t.learn.title}
       </Text>
 
       <Card variant="alt" style={styles.intro}>
-        <Text variant="heading">Understand the problem</Text>
+        <Text variant="heading">{t.learn.introTitle}</Text>
         <Text variant="subtitle" color="textSecondary" style={styles.introNote}>
-          The training rebuilds your back. This is where you learn why it works — which is what
-          keeps people going in month four.
+          {t.learn.introNote}
         </Text>
       </Card>
 
       {miniLessons.length > 0 ? (
-        <LearnRail
-          title="Mini Lessons"
-          caption="One idea, under half a minute. Start here."
-        >
+        <LearnRail title={t.learn.mini} caption={t.learn.miniCaption}>
           {miniLessons.map((item) => (
             <LessonCard key={item.id} content={item} onPress={() => open(item.id)} />
           ))}
@@ -47,18 +45,15 @@ export default function LearnScreen() {
           The grouping and the rail both work — there is just nothing worth
           sitting down for yet. Uncomment when the footage lands. */}
       {/* {longform.length > 0 ? (
-        <LearnRail
-          title="The Long Answers"
-          caption="Sit down with these when you have the time."
-        >
+        <LearnRail title={t.learn.longform} caption={t.learn.longformCaption}>
           {longform.map((item) => (
             <LessonCard key={item.id} content={item} onPress={() => open(item.id)} />
           ))}
         </LearnRail>
       ) : null} */}
 
-      <LearnRail title="Learn About The Body" caption={`Beyond the ${program.name} program.`}>
-        {mock.humanBodyTopics.map((topic) => (
+      <LearnRail title={t.learn.body} caption={t.learn.bodyCaption(localize.program(program).name)}>
+        {mock.humanBodyTopics.map(localize.topic).map((topic) => (
           <Tile
             key={topic.id}
             icon={topic.icon}
@@ -70,7 +65,7 @@ export default function LearnScreen() {
       </LearnRail>
 
       <Text variant="caption" color="textMuted" align="center" style={styles.footnote}>
-        New lessons are added as your physio records them.
+        {t.learn.footnote}
       </Text>
     </Screen>
   );

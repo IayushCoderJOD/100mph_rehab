@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
+import { strings, useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 
@@ -14,16 +15,18 @@ type PainScaleProps = {
  * colour alone, and the wording is what the user is actually being asked for.
  */
 export function describePain(score: number): string {
-  if (score === 0) return 'No pain at all';
-  if (score <= 2) return 'Barely noticeable';
-  if (score <= 4) return 'Mild — easy to work around';
-  if (score <= 6) return 'Moderate — hard to ignore';
-  if (score <= 8) return 'Strong — limiting what you do';
-  return 'Severe — everything is difficult';
+  const pain = strings().pain;
+  if (score === 0) return pain.none;
+  if (score <= 2) return pain.barely;
+  if (score <= 4) return pain.mild;
+  if (score <= 6) return pain.moderate;
+  if (score <= 8) return pain.strong;
+  return pain.severe;
 }
 
 export function PainScale({ value, onChange }: PainScaleProps) {
   const { theme } = useTheme();
+  const { t } = useI18n();
 
   return (
     <View style={styles.wrap}>
@@ -38,7 +41,7 @@ export function PainScale({ value, onChange }: PainScaleProps) {
               onPress={() => onChange(score)}
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={`${score} out of 10`}
+              accessibilityLabel={t.pain.outOfTen(score)}
               style={({ pressed }) => [
                 styles.pill,
                 {
@@ -65,10 +68,10 @@ export function PainScale({ value, onChange }: PainScaleProps) {
 
       <View style={styles.legend}>
         <Text variant="caption" color="textMuted">
-          0 · None
+          {t.pain.scaleNone}
         </Text>
         <Text variant="caption" color="textMuted">
-          10 · Severe
+          {t.pain.scaleSevere}
         </Text>
       </View>
     </View>

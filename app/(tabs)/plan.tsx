@@ -5,6 +5,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { AssignedExerciseCard } from '@/components/plan';
 import { Button, Card, HeartBadge, Loader, Screen, Text } from '@/components/ui';
 import { useRemote } from '@/hooks/useRemote';
+import { useI18n } from '@/i18n';
 
 /**
  * What the client's physio has prescribed for them specifically, on top of
@@ -14,6 +15,7 @@ import { useRemote } from '@/hooks/useRemote';
 export default function PlanScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useI18n();
   const { data, loading, error, reload } = useRemote(() => assignmentApi.mine(), [user?.id], !!user);
 
   const items = (data ?? []).filter((row) => row.exercise !== null);
@@ -21,18 +23,18 @@ export default function PlanScreen() {
   return (
     <Screen scroll>
       <Text variant="title" align="center" style={styles.pageTitle}>
-        For You
+        {t.forYou.title}
       </Text>
 
       {error ? (
         <Card style={styles.empty}>
           <Text variant="heading" align="center">
-            Could not load your prescriptions
+            {t.forYou.loadFailed}
           </Text>
           <Text variant="caption" color="textSecondary" align="center" style={styles.emptyNote}>
             {error}
           </Text>
-          <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.retry} />
+          <Button label={t.common.tryAgain} variant="secondary" onPress={() => void reload()} style={styles.retry} />
         </Card>
       ) : loading ? (
         <Loader />
@@ -40,17 +42,16 @@ export default function PlanScreen() {
         <Card style={styles.empty}>
           <HeartBadge size={72} />
           <Text variant="heading" align="center" style={styles.emptyTitle}>
-            Nothing extra yet
+            {t.forYou.emptyTitle}
           </Text>
           <Text variant="subtitle" color="textSecondary" align="center" style={styles.emptyNote}>
-            When your physio prescribes something specific to you, it shows up here alongside your
-            week.
+            {t.forYou.emptyNote}
           </Text>
         </Card>
       ) : (
         <>
           <Text variant="subtitle" color="textSecondary" style={styles.intro}>
-            Prescribed for you specifically.
+            {t.forYou.intro}
           </Text>
 
           <View style={styles.list}>
@@ -59,7 +60,7 @@ export default function PlanScreen() {
                 key={row.id}
                 assignment={row}
                 exercise={row.exercise!}
-                assignedByName={row.assigned_by_name || 'Your physio'}
+                assignedByName={row.assigned_by_name || t.common.yourPhysio}
                 onGuide={() => router.push(`/exercise/${row.exercise!.id}`)}
               />
             ))}

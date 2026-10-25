@@ -12,8 +12,8 @@ import { Button, Card, Screen, Text } from '@/components/ui';
 import { Exercise, mock } from '@/data';
 import { useExerciseLibrary } from '@/exercises';
 import { useDirectory } from '@/directory/DirectoryProvider';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
-import { fontFamily } from '@/theme/typography';
 
 type Line = { exercise: Exercise; prescription: string };
 
@@ -23,6 +23,7 @@ function AssignForm() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userById, assignExercises } = useDirectory();
   const library = useExerciseLibrary();
+  const { t, localize, fonts } = useI18n();
   const { data: detail } = useClientDetail(id ?? null);
 
   const client = userById(id ?? null) ?? detail?.user ?? null;
@@ -79,19 +80,22 @@ function AssignForm() {
     const failedIds = new Set(result.failed.map((f) => f.exercise_id));
     setLines((prev) => prev.filter((line) => failedIds.has(line.exercise.id)));
     const names = result.failed
-      .map((f) => library.find(f.exercise_id)?.name ?? f.exercise_id)
-      .join(', ');
+      .map((f) => {
+        const exercise = library.find(f.exercise_id);
+        return exercise ? localize.exercise(exercise).name : f.exercise_id;
+      })
+      .join(t.common.listSeparator);
     setError(
       result.created.length > 0
-        ? `${result.created.length} assigned. Could not assign ${names}: ${result.failed[0].error}`
-        : `Could not assign ${names}: ${result.failed[0].error}`
+        ? t.assign.partial(result.created.length, names, result.failed[0].error)
+        : t.assign.failed(names, result.failed[0].error)
     );
   };
 
   if (!client) {
     return (
       <Screen scroll>
-        <PageHeader title="Client not found" onBack={() => router.back()} />
+        <PageHeader title={t.assign.notFound} onBack={() => router.back()} />
       </Screen>
     );
   }
@@ -99,83 +103,86 @@ function AssignForm() {
   return (
     <Screen scroll keyboardAvoiding>
       <PageHeader
-        title="Assign Exercises"
-        subtitle={`For ${client.full_name}, on top of their week.`}
+        title={t.assign.title}
+        subtitle={t.assign.subtitle(client.full_name)}
         onBack={() => router.back()}
       />
 
-      <Button label="Choose exercises" onPress={() => setPicking(true)} style={styles.choose} />
+      <Button label={t.assign.choose} onPress={() => setPicking(true)} style={styles.choose} />
 
       {lines.length === 0 ? (
         <Card variant="alt" style={styles.empty}>
           <Text variant="caption" color="textSecondary" align="center">
-            Pick one or several from the catalogue. Each gets its own prescription below.
+            {t.assign.empty}
           </Text>
         </Card>
       ) : (
         <View style={styles.lines}>
-          {lines.map((line, index) => (
-            <View
-              key={line.exercise.id}
-              style={[
-                styles.line,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: line.prescription.trim() ? theme.colors.border : theme.colors.accentBorder,
-                  borderRadius: theme.radius.md,
-                },
-              ]}
-            >
-              <View style={styles.lineTop}>
-                <View style={styles.lineBody}>
-                  <Text variant="bodyStrong" numberOfLines={1}>
-                    {line.exercise.name}
-                  </Text>
-                  <Text variant="caption" color="textSecondary" numberOfLines={1}>
-                    {line.exercise.focus}
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => setLines((prev) => prev.filter((_, i) => i !== index))}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${line.exercise.name}`}
-                >
-                  <Ionicons name="close-circle-outline" size={22} color={theme.colors.textMuted} />
-                </Pressable>
-              </View>
+          {lines.map((line, index) => {
+            const shown = localize.exercise(line.exercise);
+            return (
               <View
+                key={line.exercise.id}
                 style={[
-                  styles.prescription,
+                  styles.line,
                   {
-                    backgroundColor: theme.colors.inputBackground,
-                    borderColor: theme.colors.border,
-                    borderRadius: theme.radius.sm,
+                    backgroundColor: theme.colors.surface,
+                    borderColor: line.prescription.trim() ? theme.colors.border : theme.colors.accentBorder,
+                    borderRadius: theme.radius.md,
                   },
                 ]}
               >
-                <TextInput
-                  value={line.prescription}
-                  onChangeText={(text) =>
-                    setLines((prev) => prev.map((l, i) => (i === index ? { ...l, prescription: text } : l)))
-                  }
-                  placeholder="Prescription, e.g. 2 x 90s holds · Both sides · Every evening"
-                  placeholderTextColor={theme.colors.textMuted}
-                  style={[styles.prescriptionInput, { color: theme.colors.textPrimary }]}
-                  maxLength={200}
-                />
+                <View style={styles.lineTop}>
+                  <View style={styles.lineBody}>
+                    <Text variant="bodyStrong" numberOfLines={1}>
+                      {shown.name}
+                    </Text>
+                    <Text variant="caption" color="textSecondary" numberOfLines={1}>
+                      {shown.focus}
+                    </Text>
+                  </View>
+                  <Pressable
+                    onPress={() => setLines((prev) => prev.filter((_, i) => i !== index))}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.assign.remove(shown.name)}
+                  >
+                    <Ionicons name="close-circle-outline" size={22} color={theme.colors.textMuted} />
+                  </Pressable>
+                </View>
+                <View
+                  style={[
+                    styles.prescription,
+                    {
+                      backgroundColor: theme.colors.inputBackground,
+                      borderColor: theme.colors.border,
+                      borderRadius: theme.radius.sm,
+                    },
+                  ]}
+                >
+                  <TextInput
+                    value={line.prescription}
+                    onChangeText={(text) =>
+                      setLines((prev) => prev.map((l, i) => (i === index ? { ...l, prescription: text } : l)))
+                    }
+                    placeholder={t.assign.prescriptionPlaceholder}
+                    placeholderTextColor={theme.colors.textMuted}
+                    style={[styles.prescriptionInput, { color: theme.colors.textPrimary, fontFamily: fonts.medium }]}
+                    maxLength={200}
+                  />
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
       <View style={styles.note}>
         <TextField
-          label="NOTE TO CLIENT (OPTIONAL)"
+          label={t.assign.note}
           value={note}
           onChangeText={setNote}
-          placeholder="Why you have added these, and anything to watch for. Shown with every exercise above."
+          placeholder={t.assign.notePlaceholder}
           multiline
           autoCapitalize="sentences"
           maxLength={400}
@@ -189,11 +196,7 @@ function AssignForm() {
       ) : null}
 
       <Button
-        label={
-          lines.length === 0
-            ? 'Assign'
-            : `Assign ${lines.length} exercise${lines.length === 1 ? '' : 's'}`
-        }
+        label={lines.length === 0 ? t.assign.assign : t.assign.assignCount(lines.length)}
         disabled={!valid}
         loading={submitting}
         onPress={() => void submit()}
@@ -201,15 +204,15 @@ function AssignForm() {
       />
       <Text variant="caption" color="textMuted" align="center" style={styles.footnote}>
         {lines.some((line) => !line.prescription.trim())
-          ? 'Every exercise needs a prescription before you can assign.'
-          : 'The client sees these under For You, with your note.'}
+          ? t.assign.needsPrescription
+          : t.assign.clientSees}
       </Text>
 
       <ExercisePicker
         visible={picking}
         exercises={library.published}
         lockedIds={locked}
-        title="Choose exercises"
+        title={t.assign.choose}
         onClose={() => setPicking(false)}
         onConfirm={addSelected}
       />
@@ -234,7 +237,7 @@ const styles = StyleSheet.create({
   lineTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   lineBody: { flex: 1, gap: 2 },
   prescription: { borderWidth: 1, paddingHorizontal: 12, height: 44, justifyContent: 'center' },
-  prescriptionInput: { fontFamily: fontFamily.medium, fontSize: 14, height: '100%' },
+  prescriptionInput: { fontSize: 14, height: '100%' },
   note: { marginTop: 24 },
   error: { marginTop: 16 },
   submit: { marginTop: 24 },

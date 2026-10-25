@@ -5,6 +5,7 @@ import { authApi, messageFor } from '@/api';
 import { PageHeader } from '@/components/common';
 import { TextField } from '@/components/form';
 import { Button, Screen, Text } from '@/components/ui';
+import { useI18n } from '@/i18n';
 import { useDismiss } from '@/navigation/useDismiss';
 
 /** Matches the server's floor (app.auth.min-password-length). */
@@ -18,6 +19,7 @@ const MIN_LENGTH = 8;
 export default function ChangePasswordScreen() {
   const router = useRouter();
   const dismiss = useDismiss('/account');
+  const { t } = useI18n();
 
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -27,9 +29,9 @@ export default function ChangePasswordScreen() {
   const [done, setDone] = useState(false);
 
   const problems: string[] = [];
-  if (next && next.length < MIN_LENGTH) problems.push(`The new password needs at least ${MIN_LENGTH} characters.`);
-  if (next && current && next === current) problems.push('The new password has to be different.');
-  if (confirm && confirm !== next) problems.push('The two new passwords do not match.');
+  if (next && next.length < MIN_LENGTH) problems.push(t.changePassword.tooShort(MIN_LENGTH));
+  if (next && current && next === current) problems.push(t.changePassword.same);
+  if (confirm && confirm !== next) problems.push(t.changePassword.mismatch);
 
   const valid = current.length > 0 && next.length >= MIN_LENGTH && confirm === next && next !== current;
 
@@ -53,12 +55,11 @@ export default function ChangePasswordScreen() {
   if (done) {
     return (
       <Screen scroll>
-        <PageHeader title="Password Changed" onBack={dismiss} />
+        <PageHeader title={t.changePassword.doneTitle} onBack={dismiss} />
         <Text variant="body" color="textSecondary" style={styles.doneNote}>
-          Your new password is set. Any other phone or browser you were signed in on has been signed
-          out — use the new password there.
+          {t.changePassword.doneNote}
         </Text>
-        <Button label="Done" onPress={dismiss} style={styles.save} />
+        <Button label={t.changePassword.done} onPress={dismiss} style={styles.save} />
       </Screen>
     );
   }
@@ -66,28 +67,28 @@ export default function ChangePasswordScreen() {
   return (
     <Screen scroll keyboardAvoiding>
       <PageHeader
-        title="Change Password"
-        subtitle="Swap the one your coach gave you for one only you know."
+        title={t.changePassword.title}
+        subtitle={t.changePassword.subtitle}
         onBack={() => router.back()}
       />
 
       <View style={styles.form}>
         <TextField
-          label="CURRENT PASSWORD"
+          label={t.changePassword.current}
           value={current}
           onChangeText={setCurrent}
           secure
           autoComplete="current-password"
         />
         <TextField
-          label="NEW PASSWORD"
+          label={t.changePassword.next}
           value={next}
           onChangeText={setNext}
           secure
           autoComplete="new-password"
         />
         <TextField
-          label="CONFIRM NEW PASSWORD"
+          label={t.changePassword.confirm}
           value={confirm}
           onChangeText={setConfirm}
           secure
@@ -111,10 +112,10 @@ export default function ChangePasswordScreen() {
         </Text>
       ) : null}
 
-      <Button label="Change Password" disabled={!valid} loading={saving} onPress={() => void save()} style={styles.save} />
+      <Button label={t.changePassword.submit} disabled={!valid} loading={saving} onPress={() => void save()} style={styles.save} />
 
       <Text variant="caption" color="textMuted" align="center" style={styles.footnote}>
-        Forgotten your current one? Your coach can set a new one for you.
+        {t.changePassword.footnote}
       </Text>
     </Screen>
   );

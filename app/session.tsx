@@ -4,7 +4,8 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { IconButton } from '@/components/common';
 import { ExerciseRow } from '@/components/session';
 import { Button, Screen, SegmentedControl, Text } from '@/components/ui';
-import { DAY_LABEL, formatShortDate } from '@/data';
+import { formatShortDate } from '@/data';
+import { useI18n } from '@/i18n';
 import { useDismiss } from '@/navigation/useDismiss';
 import { LOG_WINDOW_DAYS, usePlan } from '@/plan/PlanProvider';
 import { useTheme } from '@/theme';
@@ -15,6 +16,7 @@ export default function SessionScreen() {
   const router = useRouter();
   const dismiss = useDismiss();
   const { theme } = useTheme();
+  const { t, localize } = useI18n();
   const { todayIso, dayFor, canLog, logSession, unlogSession } = usePlan();
   const { date } = useLocalSearchParams<{ date?: string }>();
 
@@ -67,7 +69,8 @@ export default function SessionScreen() {
   const toggle = (id: string) =>
     setDoneIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const dayLabel = `${DAY_LABEL[day.day_of_week]} · ${formatShortDate(targetIso)}`;
+  const dayName = t.days.long[day.day_of_week];
+  const dayLabel = `${dayName} · ${formatShortDate(targetIso)}`;
 
   // Carry the date into the guide so the prescription shown is the one this
   // day asks for, not whatever today happens to prescribe.
@@ -87,10 +90,10 @@ export default function SessionScreen() {
         </View>
         <View style={styles.empty}>
           <Text variant="title" align="center">
-            {isToday ? 'Nothing scheduled today' : 'Rest day'}
+            {isToday ? t.session.nothingToday : t.session.restDay}
           </Text>
           <Text variant="subtitle" color="textSecondary" align="center" style={styles.emptyNote}>
-            Rest is part of the plan. Your next session is waiting on the week.
+            {t.session.restNote}
           </Text>
         </View>
       </Screen>
@@ -100,14 +103,14 @@ export default function SessionScreen() {
   const completedCount = doneIds.length;
   const progress = completedCount / plan.length;
 
-  const kicker = running ? 'Session in progress' : isToday ? "Today's Session" : dayLabel;
-  const title = `${DAY_LABEL[day.day_of_week]} Session`;
+  const kicker = running ? t.session.inProgress : isToday ? t.session.todaysSession : dayLabel;
+  const title = t.session.title(dayName);
 
   const readOnlyNote = alreadyDone
-    ? 'You completed this session.'
+    ? t.session.completedNote
     : isFuture
-      ? 'This is the plan for that day. You can log it when it comes around.'
-      : `Sessions can be logged up to ${LOG_WINDOW_DAYS} days back. That day is further than that.`;
+      ? t.session.futureNote
+      : t.session.tooOldNote(LOG_WINDOW_DAYS);
 
   return (
     <Screen>
@@ -132,13 +135,13 @@ export default function SessionScreen() {
             />
           </View>
           <Text variant="caption" color="textSecondary" style={styles.meta}>
-            {completedCount} of {plan.length} exercises done
+            {t.session.progress(completedCount, plan.length)}
           </Text>
         </View>
       ) : (
         <Text variant="caption" color="textSecondary" style={styles.meta}>
-          {plan.length} exercise{plan.length === 1 ? '' : 's'}
-          {!isToday && loggable ? ' · not logged yet' : ''}
+          {t.session.count(plan.length)}
+          {!isToday && loggable ? t.session.notLogged : ''}
         </Text>
       )}
 
@@ -151,8 +154,8 @@ export default function SessionScreen() {
           <ExerciseRow
             key={exercise.id}
             position={index + 1}
-            name={exercise.name}
-            prescription={prescription}
+            name={localize.exercise(exercise).name}
+            prescription={localize.prescription(prescription)}
             done={doneIds.includes(exercise.id)}
             onToggle={running ? () => toggle(exercise.id) : undefined}
             onGuide={() => openGuide(exercise.id)}
@@ -173,12 +176,12 @@ export default function SessionScreen() {
               {readOnlyNote}
             </Text>
             {undoable ? (
-              <Button label="Undo — Mark as Not Done" variant="ghost" loading={saving} onPress={() => void undo()} />
+              <Button label={t.session.undo} variant="ghost" loading={saving} onPress={() => void undo()} />
             ) : null}
           </>
         ) : running ? (
           <Button
-            label={completedCount === plan.length ? 'Finish Session' : 'Finish Early'}
+            label={completedCount === plan.length ? t.session.finish : t.session.finishEarly}
             variant={completedCount === plan.length ? 'primary' : 'secondary'}
             loading={saving}
             onPress={() => void finish()}
@@ -187,21 +190,27 @@ export default function SessionScreen() {
           <>
             <SegmentedControl<Mode>
               segments={[
-                { label: 'Guided', value: 'guided' },
-                { label: 'Log only', value: 'log' },
+                { label: t.session.guided, value: 'guided' },
+                { label: t.session.logOnly, value: 'log' },
               ]}
               value={mode}
               onChange={setMode}
             />
             <Text variant="caption" color="textMuted" align="center" style={styles.modeNote}>
               {mode === 'guided'
-                ? 'Work through the list and tick each exercise off as you go.'
+                ? t.session.guidedNote
                 : isToday
-                  ? 'Already trained? Mark the whole session done in one tap.'
-                  : `Did this on ${DAY_LABEL[day.day_of_week]} but forgot to log it? Mark it done now.`}
+                  ? t.session.logTodayNote
+                  : t.session.logPastNote(dayName)}
             </Text>
             <Button
-              label={mode === 'guided' ? 'Start Workout' : isToday ? 'Log as Complete' : `Log ${DAY_LABEL[day.day_of_week]} as Complete`}
+              label={
+                mode === 'guided'
+                  ? t.session.startWorkout
+                  : isToday
+                    ? t.session.logComplete
+                    : t.session.logDayComplete(dayName)
+              }
               loading={saving && mode === 'log'}
               onPress={mode === 'guided' ? () => setRunning(true) : () => void finish()}
             />

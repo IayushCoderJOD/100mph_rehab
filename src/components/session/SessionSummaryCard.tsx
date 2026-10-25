@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -20,19 +21,20 @@ type SessionSummaryCardProps = {
  * the way in. Knows nothing about which program it belongs to.
  */
 export function SessionSummaryCard({
-  kicker = "Today's Workout",
+  kicker,
   sessionName,
   exerciseCount,
   durationMin,
-  actionLabel = 'Start Session',
+  actionLabel,
   onStart,
 }: SessionSummaryCardProps) {
   const { theme } = useTheme();
+  const { t } = useI18n();
 
   return (
     <Card variant="alt" style={styles.card}>
       <Text variant="label" color="textSecondary" align="center" style={styles.kicker}>
-        {kicker}
+        {kicker ?? t.home.todaysWorkout}
       </Text>
       <Text variant="title" align="center" style={styles.name}>
         {sessionName}
@@ -42,14 +44,14 @@ export function SessionSummaryCard({
 
       <SessionStats
         stats={[
-          { value: `${exerciseCount}`, label: 'Exercises' },
-          { value: `${durationMin}m`, label: 'Duration' },
+          { value: `${exerciseCount}`, label: t.sessionSummary.exercises },
+          { value: t.sessionSummary.minutes(durationMin), label: t.sessionSummary.duration },
         ]}
       />
 
       <View style={[styles.rule, { backgroundColor: theme.colors.border }]} />
 
-      <Button label={actionLabel} onPress={onStart} />
+      <Button label={actionLabel ?? t.sessionSummary.start} onPress={onStart} />
     </Card>
   );
 }

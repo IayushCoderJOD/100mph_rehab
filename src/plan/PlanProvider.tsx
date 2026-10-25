@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { AppState } from 'react-native';
 import { messageFor, planApi, sessionApi } from '@/api';
 import { useAuth } from '@/auth/AuthProvider';
+import { strings } from '@/i18n';
 import {
   ISODate,
   WeekDay,
@@ -132,7 +133,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   const logSession = useCallback(
     async ({ date, completedExerciseIds, source }: LogSessionInput): Promise<Result> => {
       if (!canLog(date)) {
-        return { ok: false, error: 'That day is outside the window for logging a session.' };
+        return { ok: false, error: strings().appErrors.logWindow };
       }
       const lines = dayFor(date).plan;
       const ticked = new Set(completedExerciseIds);
@@ -158,7 +159,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   const unlogSession = useCallback(
     async (date: ISODate): Promise<Result> => {
       if (!canLog(date)) {
-        return { ok: false, error: 'That day is outside the window for changing a session.' };
+        return { ok: false, error: strings().appErrors.changeWindow };
       }
       try {
         // The log id was minted on whichever device logged it, so look it up

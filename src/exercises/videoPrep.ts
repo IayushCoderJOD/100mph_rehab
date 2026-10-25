@@ -1,4 +1,5 @@
 import type { InputAudioTrack, InputVideoTrack } from 'mediabunny';
+import { strings } from '@/i18n';
 
 /**
  * Turns whatever video an admin picks into the one kind every member's device
@@ -52,7 +53,7 @@ const CODEC_LABEL: Record<string, string> = { avc: 'H.264', hevc: 'HEVC', vp8: '
 
 export class UploadCancelled extends Error {
   constructor() {
-    super('Upload cancelled.');
+    super(strings().uploads.cancelled);
   }
 }
 
@@ -116,7 +117,7 @@ const UNREADABLE_AHEAD: VideoPlan = {
  */
 export async function planVideo(file: File): Promise<VideoPlan> {
   if (file.size > MAX_SOURCE_BYTES) {
-    throw new Error(`That file is ${(file.size / 1024 ** 3).toFixed(1)} GB. Trim it to just the exercise and try again.`);
+    throw new Error(strings().uploads.fileTooLarge((file.size / 1024 ** 3).toFixed(1)));
   }
 
   const mb = await import('mediabunny');
@@ -129,13 +130,11 @@ export async function planVideo(file: File): Promise<VideoPlan> {
       // A container Mediabunny does not read, such as AVI. ffmpeg reads nearly anything.
       return UNREADABLE_AHEAD;
     }
-    if (!track) throw new Error('That file has no video in it.');
+    if (!track) throw new Error(strings().uploads.noVideoTrack);
 
     const durationSec = await track.computeDuration();
     if (durationSec > MAX_SOURCE_MINUTES * 60) {
-      throw new Error(
-        `That video is ${Math.round(durationSec / 60)} minutes long. Trim it to just the exercise — under ${MAX_SOURCE_MINUTES} minutes — and try again.`
-      );
+      throw new Error(strings().uploads.tooLong(Math.round(durationSec / 60), MAX_SOURCE_MINUTES));
     }
 
     const width = track.displayWidth;
@@ -432,11 +431,7 @@ function convertWithFfmpeg(
           console.warn(`ffmpeg ${data.stage} failed:\n${data.detail}`);
           finish(() =>
             reject(
-              new Error(
-                data.stage === 'load'
-                  ? 'The video converter could not be downloaded. Check your connection and try again.'
-                  : 'This video could not be converted. Try exporting it from your phone as an MP4 and upload that.'
-              )
+              new Error(data.stage === 'load' ? strings().uploads.converterDownload : strings().uploads.cannotConvert)
             )
           );
           break;
@@ -445,7 +440,7 @@ function convertWithFfmpeg(
     worker.onerror = (event) => {
       event.preventDefault();
       console.warn('ffmpeg worker crashed', event.message);
-      finish(() => reject(new Error('The video converter stopped unexpectedly. Please try again.')));
+      finish(() => reject(new Error(strings().uploads.converterStopped)));
     };
 
     worker.postMessage({

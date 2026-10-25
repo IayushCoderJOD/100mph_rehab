@@ -14,6 +14,7 @@ import { DetailRow } from '@/components/settings';
 import { Button, Card, Loader, Screen, Text } from '@/components/ui';
 import { ageFrom, formatLongDate, formatShortDate, mock } from '@/data';
 import { useDirectory } from '@/directory/DirectoryProvider';
+import { useI18n } from '@/i18n';
 import { useDismiss } from '@/navigation/useDismiss';
 import { useTheme } from '@/theme';
 
@@ -24,6 +25,7 @@ export default function AdminClientScreen() {
   const { removeAssignment, setUserStatus, deleteUser } = useDirectory();
   const dismiss = useDismiss('/(tabs)/clients');
   const { can } = useAccess();
+  const { t, localize } = useI18n();
   const { data: detail, loading, error, reload } = useClientDetail(id ?? null);
   const [actionError, setActionError] = useState<string | null>(null);
   // Suspending is a two-tap action: one stray tap should not lock a client out.
@@ -73,7 +75,7 @@ export default function AdminClientScreen() {
   if (!client) {
     return (
       <Screen scroll>
-        <PageHeader title={loading ? '' : 'Client not found'} onBack={() => router.back()} />
+        <PageHeader title={loading ? '' : t.adminClient.notFound} onBack={() => router.back()} />
         {loading ? (
           <Loader />
         ) : error ? (
@@ -81,14 +83,15 @@ export default function AdminClientScreen() {
             <Text variant="caption" color="textSecondary" align="center">
               {error}
             </Text>
-            <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.retry} />
+            <Button label={t.common.tryAgain} variant="secondary" onPress={() => void reload()} style={styles.retry} />
           </Card>
         ) : null}
       </Screen>
     );
   }
 
-  const programName = mock.programs.find((p) => p.id === client.active_program_id)?.name ?? null;
+  const program = mock.programs.find((p) => p.id === client.active_program_id);
+  const programName = program ? localize.program(program).name : null;
   const age = ageFrom(client.date_of_birth);
   const assignments = (detail?.assigned_exercises ?? []).filter((row) => row.exercise !== null);
 
@@ -140,33 +143,33 @@ export default function AdminClientScreen() {
     <Screen scroll>
       <PageHeader
         title={client.full_name}
-        subtitle={programName ? `Focus: ${programName}` : 'Member'}
+        subtitle={programName ? t.adminClient.focus(programName) : t.adminClient.member}
         onBack={() => router.back()}
       />
 
       <Card variant="alt" style={styles.headline}>
         <View style={styles.headlineTop}>
           <Text variant="label" color="textSecondary" style={styles.kicker}>
-            Snapshot
+            {t.adminClient.snapshot}
           </Text>
           <StatusBadge status={client.status} />
         </View>
 
         <SessionStats
           stats={[
-            { value: summary?.latest_pain_score != null ? `${summary.latest_pain_score}` : '—', label: 'Latest pain' },
-            { value: weekAvg !== null ? weekAvg.toFixed(1) : '—', label: '7-day avg' },
-            { value: `${sessionsLast7}`, label: 'Sessions / wk' },
+            { value: summary?.latest_pain_score != null ? `${summary.latest_pain_score}` : '—', label: t.adminClient.latestPain },
+            { value: weekAvg !== null ? weekAvg.toFixed(1) : '—', label: t.common.weekAvg },
+            { value: `${sessionsLast7}`, label: t.adminClient.sessionsPerWeek },
           ]}
         />
         <SessionStats
           style={styles.statsRow}
           stats={[
-            { value: `${summary?.current_streak ?? 0}`, label: 'Day streak' },
-            { value: `${summary?.total_check_ins ?? 0}`, label: 'Check-ins' },
+            { value: `${summary?.current_streak ?? 0}`, label: t.common.dayStreak },
+            { value: `${summary?.total_check_ins ?? 0}`, label: t.common.checkIns },
             {
               value: summary?.adherence != null ? `${Math.round(summary.adherence * 100)}%` : '—',
-              label: 'On plan · 4 wks',
+              label: t.common.onPlan4Weeks,
             },
           ]}
         />
@@ -174,30 +177,29 @@ export default function AdminClientScreen() {
         {delta !== null ? (
           <Text variant="caption" color="textSecondary" align="center" style={styles.delta}>
             {delta < 0
-              ? `Down ${Math.abs(delta).toFixed(1)} on the week before.`
+              ? t.adminClient.down(Math.abs(delta).toFixed(1))
               : delta > 0
-                ? `Up ${delta.toFixed(1)} on the week before.`
-                : 'Level with the week before.'}
+                ? t.adminClient.up(delta.toFixed(1))
+                : t.common.levelWithLastWeek}
           </Text>
         ) : null}
 
         {client.status === 'invited' ? (
           <View style={[styles.flag, { borderColor: theme.colors.border, borderRadius: theme.radius.sm }]}>
             <Text variant="caption" color="textSecondary">
-              Account created on {formatLongDate(client.member_since)}. They have not signed in yet, so
-              there is nothing to track.
+              {t.adminClient.invited(formatLongDate(client.member_since))}
             </Text>
           </View>
         ) : quietDays === null ? (
           <View style={[styles.flag, { borderColor: theme.colors.accentBorder, borderRadius: theme.radius.sm }]}>
             <Text variant="caption" color="accentText">
-              Signed in but has never checked in. Worth a call.
+              {t.adminClient.neverCheckedIn}
             </Text>
           </View>
         ) : quietDays >= 4 ? (
           <View style={[styles.flag, { borderColor: theme.colors.accentBorder, borderRadius: theme.radius.sm }]}>
             <Text variant="caption" color="accentText">
-              No check-in for {quietDays} days. Worth a nudge.
+              {t.adminClient.quiet(quietDays)}
             </Text>
           </View>
         ) : null}
@@ -212,11 +214,15 @@ export default function AdminClientScreen() {
       {/* ---- The week ---- */}
       <View style={styles.sectionHead}>
         <Text variant="heading" style={styles.sectionHeadTitle}>
-          Training Week
+          {t.adminClient.trainingWeek}
         </Text>
         {can('clients.assign_exercise') ? (
           <Button
-            label={detail?.plan && Object.values(detail.plan.days).some((d) => d.length > 0) ? 'Edit week' : 'Write week'}
+            label={
+              detail?.plan && Object.values(detail.plan.days).some((d) => d.length > 0)
+                ? t.adminClient.editWeek
+                : t.adminClient.writeWeek
+            }
             variant="secondary"
             fullWidth={false}
             onPress={() => router.push(`/admin/plan/${client.id}`)}
@@ -231,10 +237,10 @@ export default function AdminClientScreen() {
       {trend.length > 1 ? (
         <Card style={styles.block}>
           <Text variant="label" color="textSecondary" style={styles.kicker}>
-            Pain Trend
+            {t.common.painTrend}
           </Text>
           <Text variant="caption" color="textSecondary" style={styles.blockNote}>
-            Last {trend.length} check-ins · lower is better
+            {t.common.lastCheckIns(trend.length)}
           </Text>
           <View style={styles.chart}>
             <PainTrendChart points={trend} height={180} />
@@ -245,11 +251,11 @@ export default function AdminClientScreen() {
       {/* ---- Prescriptions on top of the week ---- */}
       <View style={styles.sectionHead}>
         <Text variant="heading" style={styles.sectionHeadTitle}>
-          Prescribed Exercises
+          {t.adminClient.prescribed}
         </Text>
         {can('clients.assign_exercise') ? (
           <Button
-            label="Assign"
+            label={t.adminClient.assign}
             variant="secondary"
             fullWidth={false}
             onPress={() => router.push(`/admin/assign/${client.id}`)}
@@ -260,7 +266,7 @@ export default function AdminClientScreen() {
       {assignments.length === 0 ? (
         <Card style={styles.emptyBlock}>
           <Text variant="caption" color="textSecondary" align="center">
-            Nothing prescribed beyond the week yet.
+            {t.adminClient.nothingPrescribed}
           </Text>
         </Card>
       ) : (
@@ -270,7 +276,7 @@ export default function AdminClientScreen() {
               key={row.id}
               assignment={row}
               exercise={row.exercise!}
-              assignedByName={row.assigned_by_name || 'Staff'}
+              assignedByName={row.assigned_by_name || t.adminClient.staff}
               onRemove={can('clients.assign_exercise') ? () => void withdraw(row.id) : undefined}
             />
           ))}
@@ -279,12 +285,12 @@ export default function AdminClientScreen() {
 
       {/* ---- What they logged ---- */}
       <Text variant="heading" style={styles.sectionTitle}>
-        Recent Check-Ins
+        {t.common.recentCheckIns}
       </Text>
       <Card style={styles.logCard}>
         {checkIns.length === 0 ? (
           <Text variant="caption" color="textSecondary" align="center" style={styles.logEmpty}>
-            No check-ins in the last 30 days.
+            {t.adminClient.noCheckIns}
           </Text>
         ) : (
           [...checkIns]
@@ -299,7 +305,7 @@ export default function AdminClientScreen() {
                   {formatShortDate(entry.local_date)}
                 </Text>
                 <Text variant="caption" color="textSecondary" style={styles.logNote} numberOfLines={2}>
-                  {entry.pain_location ?? 'No location noted.'}
+                  {entry.pain_location ?? t.common.noLocation}
                 </Text>
                 <Text variant="bodyStrong">{entry.pain_score ?? '—'}</Text>
               </View>
@@ -308,12 +314,12 @@ export default function AdminClientScreen() {
       </Card>
 
       <Text variant="heading" style={styles.sectionTitle}>
-        Recent Sessions
+        {t.adminClient.recentSessions}
       </Text>
       <Card style={styles.logCard}>
         {sessions.length === 0 ? (
           <Text variant="caption" color="textSecondary" align="center" style={styles.logEmpty}>
-            No sessions logged in the last 30 days.
+            {t.adminClient.noSessions}
           </Text>
         ) : (
           sessions.slice(0, 8).map((session, index) => {
@@ -328,8 +334,8 @@ export default function AdminClientScreen() {
                   {formatShortDate(session.local_date)}
                 </Text>
                 <Text variant="caption" color="textSecondary" style={styles.logNote} numberOfLines={1}>
-                  {session.source === 'guided' ? 'Guided' : 'Logged'}
-                  {total > 0 ? ` · ${done} of ${total} exercises` : ''}
+                  {session.source === 'guided' ? t.adminClient.guided : t.adminClient.logged}
+                  {total > 0 ? t.adminClient.ofExercises(done, total) : ''}
                 </Text>
               </View>
             );
@@ -339,42 +345,47 @@ export default function AdminClientScreen() {
 
       {/* ---- The person ---- */}
       <Text variant="heading" style={styles.sectionTitle}>
-        Account
+        {t.adminClient.account}
       </Text>
       <Card style={styles.details}>
-        <DetailRow label="Email" value={client.email} />
-        <DetailRow label="Phone" value={client.phone || '—'} />
-        <DetailRow label="Age" value={age !== null ? `${age}` : 'Not given'} />
-        <DetailRow label="Height" value={client.height_cm != null ? `${client.height_cm} cm` : 'Not given'} />
-        <DetailRow label="Weight" value={client.weight_kg != null ? `${client.weight_kg} kg` : 'Not given'} />
-        {programName ? <DetailRow label="Focus area" value={programName} /> : null}
-        <DetailRow label="Joined" value={formatLongDate(client.member_since)} last />
+        <DetailRow label={t.common.email} value={client.email} />
+        <DetailRow label={t.common.phone} value={client.phone || '—'} />
+        <DetailRow label={t.common.age} value={age !== null ? `${age}` : t.common.notGiven} />
+        <DetailRow
+          label={t.common.height}
+          value={client.height_cm != null ? t.common.cm(client.height_cm) : t.common.notGiven}
+        />
+        <DetailRow
+          label={t.common.weight}
+          value={client.weight_kg != null ? t.common.kg(client.weight_kg) : t.common.notGiven}
+        />
+        {programName ? <DetailRow label={t.adminClient.focusArea} value={programName} /> : null}
+        <DetailRow label={t.common.joined} value={formatLongDate(client.member_since)} last />
       </Card>
 
       {can('clients.manage_status') ? (
         <View style={styles.actions}>
           {resetDone ? (
             <Text variant="caption" color="accentText">
-              New password set. Tell {client.full_name} what it is — they have been signed out everywhere
-              and can change it from My Account once they are back in.
+              {t.adminClient.resetDone(client.full_name)}
             </Text>
           ) : null}
 
           {resetOpen ? (
             <Card style={styles.resetCard}>
               <TextField
-                label="NEW TEMPORARY PASSWORD"
+                label={t.adminClient.tempPassword}
                 value={tempPassword}
                 onChangeText={setTempPassword}
-                placeholder="At least 8 characters"
+                placeholder={t.adminClient.tempPlaceholder}
                 autoComplete="off"
               />
               <Text variant="caption" color="textMuted">
-                Their current password stops working and every device they are signed in on is signed out.
+                {t.adminClient.resetNote}
               </Text>
               <View style={styles.resetButtons}>
                 <Button
-                  label="Cancel"
+                  label={t.adminClient.cancel}
                   variant="ghost"
                   fullWidth={false}
                   onPress={() => {
@@ -383,7 +394,7 @@ export default function AdminClientScreen() {
                   }}
                 />
                 <Button
-                  label="Set Password"
+                  label={t.adminClient.setPassword}
                   fullWidth={false}
                   disabled={tempPassword.length < 8}
                   loading={resetting}
@@ -393,7 +404,7 @@ export default function AdminClientScreen() {
             </Card>
           ) : (
             <Button
-              label="Reset Password"
+              label={t.adminClient.resetPassword}
               variant="secondary"
               onPress={() => {
                 setResetDone(false);
@@ -404,37 +415,36 @@ export default function AdminClientScreen() {
           )}
 
           {client.status === 'suspended' ? (
-            <Button label="Reactivate Account" onPress={() => void changeStatus('active')} />
+            <Button label={t.adminClient.reactivate} onPress={() => void changeStatus('active')} />
           ) : confirmSuspend ? (
             <View style={styles.resetButtons}>
-              <Button label="Keep Active" variant="ghost" fullWidth={false} onPress={() => setConfirmSuspend(false)} />
+              <Button label={t.adminClient.keepActive} variant="ghost" fullWidth={false} onPress={() => setConfirmSuspend(false)} />
               <Button
-                label={`Suspend ${client.full_name.split(' ')[0]}`}
+                label={t.adminClient.suspendName(client.full_name.split(' ')[0])}
                 fullWidth={false}
                 onPress={() => void changeStatus('suspended')}
               />
             </View>
           ) : (
-            <Button label="Suspend Account" variant="secondary" onPress={() => setConfirmSuspend(true)} />
+            <Button label={t.adminClient.suspend} variant="secondary" onPress={() => setConfirmSuspend(true)} />
           )}
 
           {confirmDelete ? (
             <Card style={styles.resetCard}>
-              <Text variant="bodyStrong">Delete {client.full_name}’s account?</Text>
+              <Text variant="bodyStrong">{t.adminClient.deleteTitle(client.full_name)}</Text>
               <Text variant="caption" color="textSecondary">
-                This permanently removes their plan, logged sessions, check-ins and pain history, and they can no
-                longer sign in. It cannot be undone — suspend instead if they might come back.
+                {t.adminClient.deleteNote}
               </Text>
               <View style={styles.resetButtons}>
                 <Button
-                  label="Keep Account"
+                  label={t.adminClient.keepAccount}
                   variant="ghost"
                   fullWidth={false}
                   disabled={deleting}
                   onPress={() => setConfirmDelete(false)}
                 />
                 <Button
-                  label="Delete for Good"
+                  label={t.adminClient.deleteForGood}
                   variant="danger"
                   fullWidth={false}
                   loading={deleting}
@@ -443,7 +453,7 @@ export default function AdminClientScreen() {
               </View>
             </Card>
           ) : (
-            <Button label="Delete Account" variant="danger" onPress={() => setConfirmDelete(true)} />
+            <Button label={t.adminClient.deleteAccount} variant="danger" onPress={() => setConfirmDelete(true)} />
           )}
         </View>
       ) : null}

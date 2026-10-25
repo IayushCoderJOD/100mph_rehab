@@ -3,20 +3,11 @@ import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
 import { Logo } from '@/components/ui';
 import { Text } from '@/components/ui/Text';
 import { useHover } from '@/hooks/useHover';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 
 /** How much horizontal room the rail takes out of the window. */
 export const SIDE_RAIL_WIDTH = 232;
-
-/** The tab bar's routes carry icons but no labels — a rail has room for both. */
-const LABEL: Record<string, string> = {
-  index: 'Home',
-  clients: 'Clients',
-  plan: 'Plan',
-  progress: 'Progress',
-  learn: 'Learn',
-  settings: 'Settings',
-};
 
 /**
  * Only the parts of the navigator's tab-bar props this rail actually reads.
@@ -67,6 +58,8 @@ type TabBarProps = {
  */
 export function SideRail({ state, descriptors, navigation }: TabBarProps) {
   const { theme } = useTheme();
+  // The tab bar's routes carry icons but no labels — a rail has room for both.
+  const { t } = useI18n();
 
   return (
     <View
@@ -93,7 +86,7 @@ export function SideRail({ state, descriptors, navigation }: TabBarProps) {
           return (
             <RailItem
               key={route.key}
-              label={options?.title ?? LABEL[route.name] ?? route.name}
+              label={options?.title ?? t.tabs[route.name] ?? route.name}
               icon={options?.tabBarIcon}
               focused={state.index === index}
               onPress={() => {

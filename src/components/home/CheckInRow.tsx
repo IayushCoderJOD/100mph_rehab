@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Card } from '../ui/Card';
 import { Text } from '../ui/Text';
@@ -13,6 +14,7 @@ type CheckInRowProps = {
 
 export function CheckInRow({ completed, detail, onPress }: CheckInRowProps) {
   const { theme } = useTheme();
+  const { t } = useI18n();
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
@@ -34,12 +36,12 @@ export function CheckInRow({ completed, detail, onPress }: CheckInRowProps) {
         </View>
         <View style={styles.text}>
           <Text variant="heading">
-            {completed ? 'Check In Completed' : 'Daily Check In'}
+            {completed ? t.checkInRow.completed : t.checkInRow.daily}
           </Text>
           <Text variant="caption" color="textSecondary">
             {completed
-              ? (detail ?? 'Tracking is key for recovery.')
-              : 'Log how you feel today.'}
+              ? (detail ?? t.checkInRow.completedNote)
+              : t.checkInRow.note}
           </Text>
         </View>
         {onPress ? (

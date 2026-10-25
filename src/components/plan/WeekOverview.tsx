@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { DAY_LABEL, DAY_SHORT, WEEK_DAYS, WeeklyPlan } from '@/data';
+import { WEEK_DAYS, WeeklyPlan } from '@/data';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Card } from '../ui/Card';
 import { Text } from '../ui/Text';
@@ -15,6 +16,7 @@ type WeekOverviewProps = {
  */
 export function WeekOverview({ plan, onPress }: WeekOverviewProps) {
   const { theme } = useTheme();
+  const { t, localize } = useI18n();
   const hasWork = !!plan && WEEK_DAYS.some((day) => (plan.days[day]?.length ?? 0) > 0);
 
   return (
@@ -22,12 +24,12 @@ export function WeekOverview({ plan, onPress }: WeekOverviewProps) {
       <Card style={styles.card}>
         {!hasWork ? (
           <Text variant="caption" color="textSecondary" align="center" style={styles.empty}>
-            No week written yet. Until it is, every day shows as rest.
+            {t.weekOverview.empty}
           </Text>
         ) : (
           WEEK_DAYS.map((day, index) => {
             const lines = [...(plan?.days[day] ?? [])].sort((a, b) => a.sort_order - b.sort_order);
-            const names = lines.map((line) => line.exercise?.name ?? line.exercise_id);
+            const names = lines.map((line) => (line.exercise ? localize.exercise(line.exercise).name : line.exercise_id));
             return (
               <View
                 key={day}
@@ -38,7 +40,7 @@ export function WeekOverview({ plan, onPress }: WeekOverviewProps) {
               >
                 <View style={styles.day}>
                   <Text variant="bodyStrong" color={lines.length === 0 ? 'textMuted' : 'textPrimary'}>
-                    {DAY_SHORT[day]}
+                    {t.days.short[day]}
                   </Text>
                 </View>
                 <Text
@@ -46,9 +48,9 @@ export function WeekOverview({ plan, onPress }: WeekOverviewProps) {
                   color={lines.length === 0 ? 'textMuted' : 'textSecondary'}
                   numberOfLines={2}
                   style={styles.names}
-                  accessibilityLabel={`${DAY_LABEL[day]}: ${names.join(', ') || 'rest'}`}
+                  accessibilityLabel={t.weekOverview.dayA11y(t.days.long[day], names.join(t.common.listSeparator))}
                 >
-                  {lines.length === 0 ? 'Rest' : names.join(' · ')}
+                  {lines.length === 0 ? t.weekOverview.rest : names.join(' · ')}
                 </Text>
                 {lines.length > 0 ? (
                   <Text variant="caption" color="textMuted">
@@ -61,7 +63,7 @@ export function WeekOverview({ plan, onPress }: WeekOverviewProps) {
         )}
         {plan?.updated_by_name ? (
           <Text variant="caption" color="textMuted" style={styles.footer}>
-            Last written by {plan.updated_by_name}
+            {t.weekOverview.lastWrittenBy(plan.updated_by_name)}
           </Text>
         ) : null}
       </Card>

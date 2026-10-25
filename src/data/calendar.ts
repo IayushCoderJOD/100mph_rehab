@@ -1,3 +1,4 @@
+import { dateLocale } from '@/i18n/current';
 import { DayOfWeek, ISODate } from './types';
 
 /** Training plans are written Monday → Sunday, so every week view starts on Monday. */
@@ -97,9 +98,9 @@ export function deviceTimezone(): string {
   }
 }
 
-/** '2026-08-14' → '14 August 2026', in the device's locale. */
+/** '2026-08-14' → '14 August 2026', in the device's locale — or '14 अगस्त 2026' in Hindi. */
 export function formatLongDate(iso: ISODate): string {
-  return parseISODate(iso).toLocaleDateString(undefined, {
+  return parseISODate(iso).toLocaleDateString(dateLocale(), {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -108,5 +109,5 @@ export function formatLongDate(iso: ISODate): string {
 
 /** '2026-08-14' → '14 Aug', for axis ticks and dense lists. */
 export function formatShortDate(iso: ISODate): string {
-  return parseISODate(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  return parseISODate(iso).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
 }

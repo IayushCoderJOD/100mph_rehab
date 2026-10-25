@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { WeekDay } from '@/data';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -39,6 +40,8 @@ function DayCell({
   onPress?: () => void;
 }) {
   const { theme } = useTheme();
+  const { t } = useI18n();
+  const shortLabel = t.days.short[day.day_of_week];
 
   const isCompleted = day.status === 'completed';
   const isRest = day.status === 'rest';
@@ -61,10 +64,10 @@ function DayCell({
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`${day.short_label} ${day.date}, ${day.plan.length === 0 ? 'Rest' : `${day.plan.length} exercises`}`}
+      accessibilityLabel={t.weekStrip.dayA11y(shortLabel, day.date, day.plan.length)}
     >
       <Text variant="caption" color={day.is_today ? 'accentText' : 'textSecondary'}>
-        {day.short_label}
+        {shortLabel}
       </Text>
       <View
         style={[
@@ -107,14 +110,9 @@ function DayCell({
  * once they hit their floor, the week scrolls sideways rather than squashing
  * into something unreadable.
  */
-export function WeekStrip({
-  days,
-  title = 'This Week',
-  subtitle = 'Your Training Plan',
-  onEditSchedule,
-  onSelectDay,
-}: WeekStripProps) {
+export function WeekStrip({ days, title, subtitle, onEditSchedule, onSelectDay }: WeekStripProps) {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const { width: windowWidth } = useWindowDimensions();
   const gutter = theme.spacing(5);
 
@@ -130,9 +128,9 @@ export function WeekStrip({
   return (
     <Card>
       <View onLayout={onLayout}>
-        <Text variant="heading">{title}</Text>
+        <Text variant="heading">{title ?? t.weekStrip.title}</Text>
         <Text variant="caption" color="textSecondary" style={styles.subtitle} numberOfLines={1}>
-          {subtitle}
+          {subtitle ?? t.home.trainingPlan}
         </Text>
       </View>
 
@@ -155,7 +153,7 @@ export function WeekStrip({
       </ScrollView>
 
       {onEditSchedule ? (
-        <Button label="Edit Schedule" variant="ghost" onPress={onEditSchedule} style={styles.edit} />
+        <Button label={t.weekStrip.editSchedule} variant="ghost" onPress={onEditSchedule} style={styles.edit} />
       ) : null}
     </Card>
   );

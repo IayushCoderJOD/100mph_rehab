@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/common';
 import { TextField } from '@/components/form';
 import { Button, Screen, Text } from '@/components/ui';
 import { ISODate, ageFrom } from '@/data';
+import { useI18n } from '@/i18n';
 import { useDismiss } from '@/navigation/useDismiss';
 
 /** "14/03/1995" → "1995-03-14", or null when it is not a real date. */
@@ -42,6 +43,7 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const dismiss = useDismiss('/(tabs)/settings');
   const { user, refresh } = useAuth();
+  const { t } = useI18n();
 
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [dob, setDob] = useState(toDisplayDob(user?.date_of_birth ?? null));
@@ -58,14 +60,14 @@ export default function EditProfileScreen() {
 
   const problems: string[] = [];
   if (phoneNormal && !/^\+?[0-9]{7,15}$/.test(phoneNormal))
-    problems.push('Phone number should be 7 to 15 digits, with an optional + and country code.');
-  if (dobIso === null) problems.push('Date of birth should look like 14/03/1995.');
+    problems.push(t.editProfile.badPhone);
+  if (dobIso === null) problems.push(t.editProfile.badDob);
   else if (dobIso && (ageFrom(dobIso) === null || dobIso >= new Date().toISOString().slice(0, 10)))
-    problems.push('Date of birth has to be in the past.');
+    problems.push(t.editProfile.futureDob);
   if (heightCm !== undefined && (!Number.isInteger(heightCm) || heightCm < 50 || heightCm > 272))
-    problems.push('Height should be a whole number of centimetres, between 50 and 272.');
+    problems.push(t.editProfile.badHeight);
   if (weightKg !== undefined && (Number.isNaN(weightKg) || weightKg < 2 || weightKg > 500))
-    problems.push('Weight should be in kilograms, between 2 and 500.');
+    problems.push(t.editProfile.badWeight);
 
   const phoneChanged = phoneNormal !== normalisePhone(user?.phone ?? '');
   const changed =
@@ -98,14 +100,14 @@ export default function EditProfileScreen() {
   return (
     <Screen scroll keyboardAvoiding>
       <PageHeader
-        title="Your Details"
-        subtitle="How your physio reaches you, and the numbers that help them load you correctly."
+        title={t.editProfile.title}
+        subtitle={t.editProfile.subtitle}
         onBack={() => router.back()}
       />
 
       <View style={styles.form}>
         <TextField
-          label="PHONE"
+          label={t.editProfile.phone}
           value={phone}
           onChangeText={setPhone}
           placeholder="+91 98765 43210"
@@ -114,19 +116,19 @@ export default function EditProfileScreen() {
           maxLength={20}
         />
         <TextField
-          label="DATE OF BIRTH"
+          label={t.editProfile.dob}
           value={dob}
           onChangeText={setDob}
-          placeholder="DD/MM/YYYY"
+          placeholder={t.editProfile.dobPlaceholder}
           keyboardType="numbers-and-punctuation"
         />
         {dobIso ? (
           <Text variant="caption" color="textMuted" style={styles.hint}>
-            That makes you {ageFrom(dobIso)}.
+            {t.editProfile.ageHint(ageFrom(dobIso))}
           </Text>
         ) : null}
         <TextField
-          label="HEIGHT (CM)"
+          label={t.editProfile.height}
           value={height}
           onChangeText={setHeight}
           placeholder="176"
@@ -134,7 +136,7 @@ export default function EditProfileScreen() {
           maxLength={3}
         />
         <TextField
-          label="WEIGHT (KG)"
+          label={t.editProfile.weight}
           value={weight}
           onChangeText={setWeight}
           placeholder="72.5"
@@ -159,10 +161,10 @@ export default function EditProfileScreen() {
         </Text>
       ) : null}
 
-      <Button label="Save Details" disabled={!valid} loading={saving} onPress={() => void save()} style={styles.save} />
+      <Button label={t.editProfile.save} disabled={!valid} loading={saving} onPress={() => void save()} style={styles.save} />
 
       <Text variant="caption" color="textMuted" align="center" style={styles.footnote}>
-        Only you and your physio can see these.
+        {t.editProfile.footnote}
       </Text>
     </Screen>
   );

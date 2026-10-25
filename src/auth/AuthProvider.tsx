@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Entitlement, authApi, messageFor, setSessionExpiredHandler, tokenStore } from '@/api';
 import { User, deviceTimezone } from '@/data';
 import { StartupScreen } from '@/components/common/StartupScreen';
+import { strings } from '@/i18n';
 
 type AuthContextValue = {
   isAuthenticated: boolean;
@@ -118,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await authApi.deleteAccount(password);
       clearSession();
       setError(null);
-      setNotice('Your account and everything in it have been deleted.');
+      setNotice(strings().appErrors.accountDeleted);
     },
     [clearSession]
   );

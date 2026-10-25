@@ -8,17 +8,15 @@ import { PageHeader } from '@/components/common';
 import { TextField } from '@/components/form';
 import { WeeklyPlanEditor } from '@/components/plan';
 import { Button, Card, Screen, Text } from '@/components/ui';
-import { DAY_LABEL, User, UserRole, mock } from '@/data';
+import { User, UserRole, mock } from '@/data';
 import { useDirectory } from '@/directory/DirectoryProvider';
 import { useExerciseLibrary } from '@/exercises';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 
 const MIN_PASSWORD = 8;
 
-const ROLE_OPTIONS: { value: UserRole; label: string; hint: string }[] = [
-  { value: 'member', label: 'Member', hint: 'A patient. Trains on the week you write for them.' },
-  { value: 'admin', label: 'Admin', hint: 'Staff. Manages clients, weeks and accounts.' },
-];
+const ROLES: UserRole[] = ['member', 'admin'];
 
 type Step = 'details' | 'week';
 
@@ -39,6 +37,7 @@ function CreateUserForm() {
   const { theme } = useTheme();
   const { createUser, replacePlan } = useDirectory();
   const library = useExerciseLibrary();
+  const { t, localize } = useI18n();
 
   const [step, setStep] = useState<Step>('details');
   const [fullName, setFullName] = useState('');
@@ -60,7 +59,7 @@ function CreateUserForm() {
     setError(null);
     if (!detailsValid || submitting) return;
     if (role === 'member' && missing.length > 0) {
-      setError(`Every exercise needs a prescription. Check ${missing.map((d) => DAY_LABEL[d]).join(', ')}.`);
+      setError(t.common.missingPrescriptions(missing.map((d) => t.days.long[d]).join(t.common.listSeparator)));
       return;
     }
 
@@ -108,7 +107,7 @@ function CreateUserForm() {
   if (done) {
     return (
       <Screen scroll>
-        <PageHeader title="Account created" onBack={() => router.back()} />
+        <PageHeader title={t.createUser.created} onBack={() => router.back()} />
 
         <Card variant="alt" style={styles.doneCard}>
           <Ionicons
@@ -120,32 +119,28 @@ function CreateUserForm() {
             {done.user.email}
           </Text>
           <Text variant="caption" color="textSecondary" align="center" style={styles.doneNote}>
-            They can sign in with the email and password you set. The account is marked Invited
-            until they log in for the first time.
+            {t.createUser.createdNote}
           </Text>
           {done.planError ? (
             <Text variant="caption" color="danger" align="center" style={styles.doneNote}>
-              The account exists, but the week did not save: {done.planError} Open the client and
-              write it from there.
+              {t.createUser.planFailed(done.planError)}
             </Text>
           ) : done.user.role === 'member' ? (
             <Text variant="caption" color="textSecondary" align="center" style={styles.doneNote}>
-              {trainingDayCount(draft) === 0
-                ? 'No week was written. You can add one from their page whenever you are ready.'
-                : `Their week is saved: ${trainingDayCount(draft)} training day${trainingDayCount(draft) === 1 ? '' : 's'}.`}
+              {trainingDayCount(draft) === 0 ? t.createUser.noWeek : t.createUser.weekSaved(trainingDayCount(draft))}
             </Text>
           ) : null}
         </Card>
 
         {done.user.role === 'member' ? (
           <Button
-            label={done.planError ? 'Open Client & Write Week' : 'Open Client'}
+            label={done.planError ? t.createUser.openClientWrite : t.createUser.openClient}
             onPress={() => router.replace(`/admin/client/${done.user.id}`)}
             style={styles.submit}
           />
         ) : null}
-        <Button label="Create Another" variant="secondary" onPress={reset} style={styles.secondaryAction} />
-        <Button label="Back to Clients" variant="ghost" onPress={() => router.back()} style={styles.secondaryAction} />
+        <Button label={t.createUser.another} variant="secondary" onPress={reset} style={styles.secondaryAction} />
+        <Button label={t.createUser.back} variant="ghost" onPress={() => router.back()} style={styles.secondaryAction} />
       </Screen>
     );
   }
@@ -154,8 +149,8 @@ function CreateUserForm() {
     return (
       <Screen scroll keyboardAvoiding>
         <PageHeader
-          title={`${fullName.trim().split(' ')[0]}'s Week`}
-          subtitle="Step 2 of 2 · What they do on each day."
+          title={t.createUser.weekTitle(fullName.trim().split(' ')[0])}
+          subtitle={t.createUser.step2}
           onBack={() => setStep('details')}
         />
 
@@ -170,20 +165,14 @@ function CreateUserForm() {
         ) : null}
 
         <Button
-          label={
-            trainingDayCount(draft) === 0
-              ? 'Create Account Without a Week'
-              : `Create Account & Save Week`
-          }
+          label={trainingDayCount(draft) === 0 ? t.createUser.createWithoutWeek : t.createUser.createAndSave}
           variant={trainingDayCount(draft) === 0 ? 'secondary' : 'primary'}
           loading={submitting}
           onPress={() => void submit()}
           style={styles.submit}
         />
         <Text variant="caption" color="textMuted" align="center" style={styles.footnote}>
-          {trainingDayCount(draft) === 0
-            ? 'You can write the week later from their page.'
-            : `${trainingDayCount(draft)} training day${trainingDayCount(draft) === 1 ? '' : 's'} · ${7 - trainingDayCount(draft)} rest`}
+          {trainingDayCount(draft) === 0 ? t.createUser.laterNote : t.common.daySplit(trainingDayCount(draft))}
         </Text>
       </Screen>
     );
@@ -192,28 +181,36 @@ function CreateUserForm() {
   return (
     <Screen scroll keyboardAvoiding>
       <PageHeader
-        title="Create Client Account"
-        subtitle={role === 'member' ? 'Step 1 of 2 · Who they are.' : 'Access is provisioned here — there is no public sign-up.'}
+        title={t.createUser.title}
+        subtitle={role === 'member' ? t.createUser.step1 : t.createUser.adminSub}
         onBack={() => router.back()}
       />
 
       <View style={styles.form}>
-        <TextField label="FULL NAME" value={fullName} onChangeText={setFullName} placeholder="Rhea Menon" autoCapitalize="words" />
-        <TextField label="EMAIL" value={email} onChangeText={setEmail} placeholder="rhea@example.com" keyboardType="email-address" autoCapitalize="none" />
-        <TextField label="PHONE (OPTIONAL)" value={phone} onChangeText={setPhone} placeholder="+91 90000 00000" keyboardType="phone-pad" />
-        <TextField label="TEMPORARY PASSWORD" value={password} onChangeText={setPassword} placeholder={`At least ${MIN_PASSWORD} characters`} secure autoCapitalize="none" />
+        <TextField label={t.createUser.fullName} value={fullName} onChangeText={setFullName} placeholder="Rhea Menon" autoCapitalize="words" />
+        <TextField label={t.createUser.email} value={email} onChangeText={setEmail} placeholder="rhea@example.com" keyboardType="email-address" autoCapitalize="none" />
+        <TextField label={t.createUser.phone} value={phone} onChangeText={setPhone} placeholder="+91 90000 00000" keyboardType="phone-pad" />
+        <TextField
+          label={t.createUser.tempPassword}
+          value={password}
+          onChangeText={setPassword}
+          placeholder={t.createUser.passwordPlaceholder(MIN_PASSWORD)}
+          secure
+          autoCapitalize="none"
+        />
       </View>
 
       <Text variant="heading" style={styles.sectionTitle}>
-        Role
+        {t.createUser.role}
       </Text>
       <View style={styles.options}>
-        {ROLE_OPTIONS.map((option) => {
-          const active = option.value === role;
+        {ROLES.map((value) => {
+          const active = value === role;
+          const option = t.createUser.roles[value];
           return (
             <Pressable
-              key={option.value}
-              onPress={() => setRole(option.value)}
+              key={value}
+              onPress={() => setRole(value)}
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
               style={({ pressed }) => [
@@ -251,14 +248,13 @@ function CreateUserForm() {
       {role === 'member' ? (
         <>
           <Text variant="heading" style={styles.sectionTitle}>
-            Focus area
+            {t.createUser.focusArea}
           </Text>
           <Text variant="caption" color="textSecondary" style={styles.sectionNote}>
-            Optional. Picks which lessons they see under Learn. What they train on is the week you
-            write next.
+            {t.createUser.focusNote}
           </Text>
           <View style={styles.options}>
-            {mock.programs.map((program) => {
+            {mock.programs.map(localize.program).map((program) => {
               const active = program.id === programId;
               return (
                 <Pressable
@@ -301,7 +297,7 @@ function CreateUserForm() {
       ) : null}
 
       <Button
-        label={role === 'member' ? 'Next: Their Week' : 'Create Account'}
+        label={role === 'member' ? t.createUser.next : t.createUser.create}
         disabled={!detailsValid}
         loading={submitting}
         onPress={role === 'member' ? () => setStep('week') : () => void submit()}
@@ -309,7 +305,7 @@ function CreateUserForm() {
       />
 
       <Text variant="caption" color="textMuted" align="center" style={styles.footnote}>
-        The client should change this password after their first sign-in.
+        {t.createUser.footnote}
       </Text>
     </Screen>
   );

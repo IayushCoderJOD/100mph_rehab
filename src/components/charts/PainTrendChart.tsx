@@ -10,8 +10,8 @@ import Svg, {
   Text as SvgText,
 } from 'react-native-svg';
 import { ISODate, formatShortDate } from '@/data';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
-import { fontFamily } from '@/theme/typography';
 import { Text } from '../ui/Text';
 
 export type TrendPoint = {
@@ -42,6 +42,7 @@ export function PainTrendChart({
   onSelect,
 }: PainTrendChartProps) {
   const { theme } = useTheme();
+  const { t, fonts } = useI18n();
   const [width, setWidth] = useState(0);
   const onLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width);
 
@@ -49,7 +50,7 @@ export function PainTrendChart({
     return (
       <View style={[styles.empty, { height }]}>
         <Text variant="caption" color="textMuted" align="center">
-          Your pain trend appears here once you have logged a check-in.
+          {t.chart.empty}
         </Text>
       </View>
     );
@@ -103,7 +104,7 @@ export function PainTrendChart({
                 y={y(tick) + 4}
                 fill={theme.colors.textMuted}
                 fontSize={10}
-                fontFamily={fontFamily.regular}
+                fontFamily={fonts.regular}
                 textAnchor="end"
               >
                 {tick}
@@ -155,7 +156,7 @@ export function PainTrendChart({
                   y={y(point.score) - 12}
                   fill={theme.colors.textPrimary}
                   fontSize={12}
-                  fontFamily={fontFamily.medium}
+                  fontFamily={fonts.medium}
                   textAnchor={index === lastIndex && points.length > 1 ? 'end' : 'middle'}
                 >
                   {point.score}
@@ -168,7 +169,7 @@ export function PainTrendChart({
               y={height - 8}
               fill={theme.colors.textMuted}
               fontSize={10}
-              fontFamily={fontFamily.regular}
+              fontFamily={fonts.regular}
               textAnchor="start"
             >
               {formatShortDate(points[0].date)}
@@ -179,7 +180,7 @@ export function PainTrendChart({
                 y={height - 8}
                 fill={theme.colors.textMuted}
                 fontSize={10}
-                fontFamily={fontFamily.regular}
+                fontFamily={fonts.regular}
                 textAnchor="end"
               >
                 {formatShortDate(points[lastIndex].date)}
@@ -204,7 +205,7 @@ export function PainTrendChart({
                     key={`hit-${point.date}`}
                     onPress={() => onSelect(index)}
                     accessibilityRole="button"
-                    accessibilityLabel={`${formatShortDate(point.date)}, pain ${point.score} out of 10`}
+                    accessibilityLabel={t.chart.point(formatShortDate(point.date), point.score)}
                     style={[
                       styles.hit,
                       { left: x(index) - band / 2, width: band, top: PAD.top, height: plotHeight },

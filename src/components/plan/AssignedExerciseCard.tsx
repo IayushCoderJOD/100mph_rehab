@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AssignedExercise, Exercise } from '@/data';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 
@@ -20,12 +21,14 @@ type AssignedExerciseCardProps = {
  */
 export function AssignedExerciseCard({
   assignment,
-  exercise,
+  exercise: stored,
   assignedByName,
   onGuide,
   onRemove,
 }: AssignedExerciseCardProps) {
   const { theme } = useTheme();
+  const { t, localize } = useI18n();
+  const exercise = localize.exercise(stored);
 
   return (
     <View
@@ -51,7 +54,7 @@ export function AssignedExerciseCard({
             onPress={onRemove}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={`Remove ${exercise.name}`}
+            accessibilityLabel={t.assignedCard.remove(exercise.name)}
             style={({ pressed }) => [styles.remove, { opacity: pressed ? 0.6 : 1 }]}
           >
             <Ionicons name="close" size={18} color={theme.colors.textMuted} />
@@ -67,7 +70,7 @@ export function AssignedExerciseCard({
       >
         <Ionicons name="repeat-outline" size={15} color={theme.colors.accent} />
         <Text variant="caption" color="textPrimary" style={styles.prescriptionText}>
-          {assignment.prescription}
+          {localize.prescription(assignment.prescription)}
         </Text>
       </View>
 
@@ -89,7 +92,7 @@ export function AssignedExerciseCard({
         <Pressable
           onPress={onGuide}
           accessibilityRole="button"
-          accessibilityLabel={`${exercise.name} guide`}
+          accessibilityLabel={t.assignedCard.guideA11y(exercise.name)}
           style={({ pressed }) => [
             styles.guide,
             {
@@ -100,7 +103,7 @@ export function AssignedExerciseCard({
           ]}
         >
           <Text variant="label" color="textSecondary">
-            View Guide
+            {t.assignedCard.guide}
           </Text>
           <Ionicons name="chevron-forward" size={13} color={theme.colors.textMuted} />
         </Pressable>

@@ -19,6 +19,7 @@ import { ServerWakeNotice } from '@/components/common';
 import { features } from '@/config/features';
 import { DirectoryProvider } from '@/directory/DirectoryProvider';
 import { ExerciseLibraryProvider } from '@/exercises';
+import { LanguageProvider } from '@/i18n';
 import { MembershipProvider } from '@/membership/MembershipProvider';
 import { ProgramProvider } from '@/program/ProgramProvider';
 import { PlanProvider } from '@/plan/PlanProvider';
@@ -97,21 +98,23 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: palette.ink900 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <AuthProvider>
-            <ExerciseLibraryProvider>
-              <DirectoryProvider>
-                <ProgramProvider>
-                  <PlanProvider>
-                    <MembershipProvider>
-                      <CheckInProvider>
-                        <RootNavigator />
-                      </CheckInProvider>
-                    </MembershipProvider>
-                  </PlanProvider>
-                </ProgramProvider>
-              </DirectoryProvider>
-            </ExerciseLibraryProvider>
-          </AuthProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <ExerciseLibraryProvider>
+                <DirectoryProvider>
+                  <ProgramProvider>
+                    <PlanProvider>
+                      <MembershipProvider>
+                        <CheckInProvider>
+                          <RootNavigator />
+                        </CheckInProvider>
+                      </MembershipProvider>
+                    </PlanProvider>
+                  </ProgramProvider>
+                </DirectoryProvider>
+              </ExerciseLibraryProvider>
+            </AuthProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

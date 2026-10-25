@@ -4,6 +4,7 @@ import { IconButton } from '@/components/common';
 import { MediaThumb } from '@/components/learn';
 import { Screen, Text } from '@/components/ui';
 import { findLearnContent } from '@/data';
+import { useI18n } from '@/i18n';
 import { useDismiss } from '@/navigation/useDismiss';
 import { useProgramData } from '@/program/programData';
 import { useTheme } from '@/theme';
@@ -13,8 +14,10 @@ export default function LessonScreen() {
   const { theme } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { learnContent } = useProgramData();
+  const { t, localize } = useI18n();
 
-  const lesson = findLearnContent(learnContent, id ?? null);
+  const found = findLearnContent(learnContent, id ?? null);
+  const lesson = found ? localize.lesson(found) : null;
   const isMini = lesson?.kind === 'mini_lesson';
 
   return (
@@ -27,7 +30,7 @@ export default function LessonScreen() {
       {!lesson ? (
         <View style={styles.empty}>
           <Text variant="title" align="center">
-            Lesson not found
+            {t.lesson.notFound}
           </Text>
         </View>
       ) : (
@@ -41,7 +44,7 @@ export default function LessonScreen() {
           />
 
           <Text variant="label" color="accentText" style={styles.kicker}>
-            {isMini ? 'MINI LESSON' : 'LONGFORM'}
+            {isMini ? t.lesson.mini : t.lesson.longform}
           </Text>
           <Text variant="display" style={styles.title}>
             {lesson.title}
@@ -64,8 +67,7 @@ export default function LessonScreen() {
               ]}
             >
               <Text variant="caption" color="textMuted">
-                The video for this lesson is being filmed. The write-up above is the whole idea in
-                the meantime.
+                {t.lesson.filming}
               </Text>
             </View>
           ) : null}

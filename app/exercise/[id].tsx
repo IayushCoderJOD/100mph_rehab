@@ -4,6 +4,7 @@ import { IconButton } from '@/components/common';
 import { ExerciseGuide } from '@/components/session';
 import { Screen, Text } from '@/components/ui';
 import { useExercise } from '@/exercises';
+import { useI18n } from '@/i18n';
 import { useDismiss } from '@/navigation/useDismiss';
 import { usePlan } from '@/plan/PlanProvider';
 import { useTheme } from '@/theme';
@@ -11,6 +12,7 @@ import { useTheme } from '@/theme';
 export default function ExerciseGuideScreen() {
   const dismiss = useDismiss();
   const { theme } = useTheme();
+  const { t } = useI18n();
   const { id, date } = useLocalSearchParams<{ id: string; date?: string }>();
   const { today, dayFor, week } = usePlan();
 
@@ -39,7 +41,7 @@ export default function ExerciseGuideScreen() {
       ) : !exercise ? (
         <View style={styles.empty}>
           <Text variant="title" align="center">
-            Exercise not found
+            {t.exerciseGuide.notFound}
           </Text>
         </View>
       ) : (

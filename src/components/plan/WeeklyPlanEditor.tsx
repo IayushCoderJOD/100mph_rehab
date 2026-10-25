@@ -12,10 +12,10 @@ import {
   resolveLines,
   setPrescription,
 } from '@/admin/planDraft';
-import { DAY_LABEL, DAY_SHORT, DayOfWeek, Exercise, Routine, WEEK_DAYS } from '@/data';
+import { DayOfWeek, Exercise, Routine, WEEK_DAYS } from '@/data';
 import { isPublished } from '@/exercises';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
-import { fontFamily } from '@/theme/typography';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Text } from '../ui/Text';
@@ -38,9 +38,11 @@ type Sheet = null | 'add' | 'routine' | 'copy';
  */
 export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: WeeklyPlanEditorProps) {
   const { theme } = useTheme();
+  const { t, localize, fonts } = useI18n();
   const [day, setDay] = useState<DayOfWeek>(WEEK_DAYS[0]);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [copyTargets, setCopyTargets] = useState<DayOfWeek[]>([]);
+  const dayName = t.days.long[day];
 
   const lines = useMemo(() => resolveLines(draft[day], exercises), [draft, day, exercises]);
   // Every movement resolves a line already on the week; only filmed, visible
@@ -74,7 +76,7 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
               onPress={() => setDay(d)}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={`${DAY_LABEL[d]}, ${count === 0 ? 'rest' : `${count} exercises`}`}
+              accessibilityLabel={t.weekEditor.dayA11y(t.days.long[d], count)}
               style={({ pressed }) => [
                 styles.dayTab,
                 {
@@ -86,7 +88,7 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
               ]}
             >
               <Text variant="caption" color={active ? 'accentText' : 'textSecondary'}>
-                {DAY_SHORT[d]}
+                {t.days.short[d]}
               </Text>
               <Text variant="bodyStrong" color={count === 0 ? 'textMuted' : 'textPrimary'}>
                 {count === 0 ? '—' : count}
@@ -97,20 +99,18 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
       </ScrollView>
 
       <Text variant="caption" color="textSecondary" style={styles.weekNote}>
-        {trainingDays === 0
-          ? 'No training days yet. Pick a day and add exercises.'
-          : `${trainingDays} training day${trainingDays === 1 ? '' : 's'} · ${7 - trainingDays} rest`}
+        {trainingDays === 0 ? t.weekEditor.noDays : t.common.daySplit(trainingDays)}
       </Text>
 
       {/* ---- The selected day ---- */}
       <View style={styles.dayHead}>
         <Text variant="heading" style={styles.dayTitle}>
-          {DAY_LABEL[day]}
+          {dayName}
         </Text>
         {lines.length > 0 ? (
           <Pressable onPress={() => onChange(clearDay(draft, day))} hitSlop={8} accessibilityRole="button">
             <Text variant="caption" color="textSecondary">
-              Make it a rest day
+              {t.weekEditor.makeRest}
             </Text>
           </Pressable>
         ) : null}
@@ -120,112 +120,115 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
         <Card variant="alt" style={styles.rest}>
           <Ionicons name="moon-outline" size={22} color={theme.colors.textMuted} />
           <Text variant="bodyStrong" align="center" style={styles.restTitle}>
-            Rest day
+            {t.weekEditor.restDay}
           </Text>
           <Text variant="caption" color="textSecondary" align="center">
-            Add exercises to make {DAY_LABEL[day]} a training day, or start from a routine.
+            {t.weekEditor.restNote(dayName)}
           </Text>
         </Card>
       ) : (
         <View style={styles.lines}>
-          {lines.map(({ line, exercise }, index) => (
-            <View
-              key={`${line.exercise_id}-${index}`}
-              style={[
-                styles.line,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: line.prescription.trim() ? theme.colors.border : theme.colors.accentBorder,
-                  borderRadius: theme.radius.md,
-                },
-              ]}
-            >
-              <View style={styles.lineTop}>
-                <View
-                  style={[
-                    styles.position,
-                    { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt },
-                  ]}
-                >
-                  <Text variant="caption" color="textSecondary">
-                    {index + 1}
-                  </Text>
-                </View>
-                <View style={styles.lineBody}>
-                  <Text variant="bodyStrong" numberOfLines={1}>
-                    {exercise?.name ?? 'Unknown exercise'}
-                  </Text>
-                  <Text variant="caption" color="textSecondary" numberOfLines={1}>
-                    {exercise?.focus ?? line.exercise_id}
-                  </Text>
-                </View>
-                <View style={styles.lineActions}>
-                  <Pressable
-                    onPress={() => onChange(moveLine(draft, day, index, -1))}
-                    disabled={index === 0}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel="Move up"
-                    style={{ opacity: index === 0 ? 0.3 : 1 }}
-                  >
-                    <Ionicons name="chevron-up" size={18} color={theme.colors.textSecondary} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => onChange(moveLine(draft, day, index, 1))}
-                    disabled={index === lines.length - 1}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel="Move down"
-                    style={{ opacity: index === lines.length - 1 ? 0.3 : 1 }}
-                  >
-                    <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => onChange(removeLine(draft, day, index))}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel="Remove"
-                  >
-                    <Ionicons name="close-circle-outline" size={20} color={theme.colors.textMuted} />
-                  </Pressable>
-                </View>
-              </View>
-
+          {lines.map(({ line, exercise: stored }, index) => {
+            const exercise = stored ? localize.exercise(stored) : null;
+            return (
               <View
+                key={`${line.exercise_id}-${index}`}
                 style={[
-                  styles.prescription,
+                  styles.line,
                   {
-                    backgroundColor: theme.colors.inputBackground,
-                    borderColor: theme.colors.border,
-                    borderRadius: theme.radius.sm,
+                    backgroundColor: theme.colors.surface,
+                    borderColor: line.prescription.trim() ? theme.colors.border : theme.colors.accentBorder,
+                    borderRadius: theme.radius.md,
                   },
                 ]}
               >
-                <TextInput
-                  value={line.prescription}
-                  onChangeText={(text) => onChange(setPrescription(draft, day, index, text))}
-                  placeholder="Prescription, e.g. 3 x 10 reps · Slow tempo"
-                  placeholderTextColor={theme.colors.textMuted}
-                  style={[styles.prescriptionInput, { color: theme.colors.textPrimary }]}
-                  maxLength={200}
-                />
+                <View style={styles.lineTop}>
+                  <View
+                    style={[
+                      styles.position,
+                      { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt },
+                    ]}
+                  >
+                    <Text variant="caption" color="textSecondary">
+                      {index + 1}
+                    </Text>
+                  </View>
+                  <View style={styles.lineBody}>
+                    <Text variant="bodyStrong" numberOfLines={1}>
+                      {exercise?.name ?? t.weekEditor.unknown}
+                    </Text>
+                    <Text variant="caption" color="textSecondary" numberOfLines={1}>
+                      {exercise?.focus ?? line.exercise_id}
+                    </Text>
+                  </View>
+                  <View style={styles.lineActions}>
+                    <Pressable
+                      onPress={() => onChange(moveLine(draft, day, index, -1))}
+                      disabled={index === 0}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={t.weekEditor.moveUp}
+                      style={{ opacity: index === 0 ? 0.3 : 1 }}
+                    >
+                      <Ionicons name="chevron-up" size={18} color={theme.colors.textSecondary} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => onChange(moveLine(draft, day, index, 1))}
+                      disabled={index === lines.length - 1}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={t.weekEditor.moveDown}
+                      style={{ opacity: index === lines.length - 1 ? 0.3 : 1 }}
+                    >
+                      <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => onChange(removeLine(draft, day, index))}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={t.weekEditor.remove}
+                    >
+                      <Ionicons name="close-circle-outline" size={20} color={theme.colors.textMuted} />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View
+                  style={[
+                    styles.prescription,
+                    {
+                      backgroundColor: theme.colors.inputBackground,
+                      borderColor: theme.colors.border,
+                      borderRadius: theme.radius.sm,
+                    },
+                  ]}
+                >
+                  <TextInput
+                    value={line.prescription}
+                    onChangeText={(text) => onChange(setPrescription(draft, day, index, text))}
+                    placeholder={t.weekEditor.prescriptionPlaceholder}
+                    placeholderTextColor={theme.colors.textMuted}
+                    style={[styles.prescriptionInput, { color: theme.colors.textPrimary, fontFamily: fonts.medium }]}
+                    maxLength={200}
+                  />
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       )}
 
       <View style={styles.actions}>
-        <Button label="Add exercises" onPress={() => setSheet('add')} />
+        <Button label={t.weekEditor.add} onPress={() => setSheet('add')} />
         <View style={styles.secondaryActions}>
           <Button
-            label="From routine"
+            label={t.weekEditor.fromRoutine}
             variant="secondary"
             onPress={() => setSheet('routine')}
             style={styles.half}
           />
           <Button
-            label="Copy to days"
+            label={t.weekEditor.copy}
             variant="secondary"
             disabled={lines.length === 0}
             onPress={() => {
@@ -241,7 +244,7 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
         visible={sheet === 'add'}
         exercises={publishable}
         lockedIds={draft[day].map((line) => line.exercise_id)}
-        title={`Add to ${DAY_LABEL[day]}`}
+        title={t.weekEditor.addTo(dayName)}
         onClose={() => setSheet(null)}
         onConfirm={(ids) => {
           onChange(addExercises(draft, day, ids, routines, exercises));
@@ -253,13 +256,13 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
       {sheet === 'routine' ? (
         <Card style={styles.sheet}>
           <View style={styles.sheetHead}>
-            <Text variant="heading">Start {DAY_LABEL[day]} from</Text>
+            <Text variant="heading">{t.weekEditor.startFrom(dayName)}</Text>
             <Pressable onPress={() => setSheet(null)} hitSlop={10} accessibilityRole="button">
               <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
             </Pressable>
           </View>
           <Text variant="caption" color="textSecondary" style={styles.sheetNote}>
-            Replaces what is on the day. You can still add, remove and reorder afterwards.
+            {t.weekEditor.routineNote}
           </Text>
           <View style={styles.routines}>
             {usableRoutines.map((routine) => (
@@ -286,12 +289,12 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
                   color={theme.colors.accent}
                 />
                 <View style={styles.routineBody}>
-                  <Text variant="bodyStrong">{routine.name}</Text>
+                  <Text variant="bodyStrong">{localize.routine(routine).name}</Text>
                   <Text variant="caption" color="textSecondary" numberOfLines={2}>
-                    {routine.description}
+                    {localize.routine(routine).description}
                   </Text>
                   <Text variant="caption" color="textMuted">
-                    {routine.exercises.length} exercises · about {routine.approx_duration_min} min
+                    {t.weekEditor.routineMeta(routine.exercises.length, routine.approx_duration_min)}
                   </Text>
                 </View>
               </Pressable>
@@ -304,7 +307,7 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
       {sheet === 'copy' ? (
         <Card style={styles.sheet}>
           <View style={styles.sheetHead}>
-            <Text variant="heading">Copy {DAY_LABEL[day]} to</Text>
+            <Text variant="heading">{t.weekEditor.copyTitle(dayName)}</Text>
             <Pressable onPress={() => setSheet(null)} hitSlop={10} accessibilityRole="button">
               <Ionicons name="close" size={22} color={theme.colors.textSecondary} />
             </Pressable>
@@ -330,7 +333,7 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
                   ]}
                 >
                   <Text variant="caption" color={on ? 'accentText' : 'textSecondary'}>
-                    {DAY_SHORT[d]}
+                    {t.days.short[d]}
                     {draft[d].length > 0 ? ' •' : ''}
                   </Text>
                 </Pressable>
@@ -338,10 +341,10 @@ export function WeeklyPlanEditor({ draft, onChange, exercises, routines }: Weekl
             })}
           </View>
           <Text variant="caption" color="textMuted" style={styles.sheetNote}>
-            A dot marks a day that already has work — copying replaces it.
+            {t.weekEditor.copyNote}
           </Text>
           <Button
-            label={copyTargets.length === 0 ? 'Choose days' : `Copy to ${copyTargets.length} day${copyTargets.length === 1 ? '' : 's'}`}
+            label={copyTargets.length === 0 ? t.weekEditor.chooseDays : t.weekEditor.copyTo(copyTargets.length)}
             disabled={copyTargets.length === 0}
             onPress={() => {
               onChange(copyDay(draft, day, copyTargets));
@@ -378,7 +381,7 @@ const styles = StyleSheet.create({
   lineBody: { flex: 1, gap: 2 },
   lineActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   prescription: { borderWidth: 1, paddingHorizontal: 12, height: 44, justifyContent: 'center' },
-  prescriptionInput: { fontFamily: fontFamily.medium, fontSize: 14, height: '100%' },
+  prescriptionInput: { fontSize: 14, height: '100%' },
   actions: { marginTop: 16, gap: 10 },
   secondaryActions: { flexDirection: 'row', gap: 10 },
   half: { flex: 1 },

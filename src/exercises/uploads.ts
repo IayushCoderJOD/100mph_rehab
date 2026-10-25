@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { UploadTicket, adminApi } from '@/api';
 import { Exercise } from '@/data';
+import { strings } from '@/i18n';
 import { PrepProgress, UploadCancelled, VideoPlan, hasSoundTrack, planVideo, prepareVideo } from './videoPrep';
 
 export { MAX_SOURCE_MINUTES, UploadCancelled } from './videoPrep';
@@ -33,7 +34,7 @@ export type UploadResult = {
 /** Some browsers leave File.type empty; the extension is the next best thing. */
 function requireVideo(file: File): void {
   if (file.type.startsWith('video/') || /\.(mp4|m4v|mov|webm|mkv|avi|3gp)$/i.test(file.name)) return;
-  throw new Error('Choose a video file.');
+  throw new Error(strings().uploads.chooseFile);
 }
 
 type VideoCheck = { poster: Blob | null };
@@ -65,10 +66,7 @@ function inspectVideo(file: File): Promise<VideoCheck> {
     const unreadable = () =>
       finish(() =>
         reject(
-          new Error(
-            'The converted video would not play back, so it was not uploaded. ' +
-              'Try exporting it from your phone as an MP4 and upload that.'
-          )
+          new Error(strings().uploads.wouldNotPlay)
         )
       );
     const timer = setTimeout(unreadable, 30000);
@@ -119,15 +117,10 @@ function putFile(
     };
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`Storage refused the upload (${xhr.status}). Please try again.`));
+      else reject(new Error(strings().uploads.storageRefused(xhr.status)));
     };
     xhr.onerror = () =>
-      reject(
-        new Error(
-          'The upload could not reach storage. Check your connection and try again — if it keeps ' +
-            "failing, the storage bucket's upload settings (CORS) need checking."
-        )
-      );
+      reject(new Error(strings().uploads.storageUnreachable));
     xhr.onabort = () => reject(new UploadCancelled());
     signal?.addEventListener('abort', () => xhr.abort());
     xhr.send(body);
@@ -150,7 +143,7 @@ async function keepScreenOn(): Promise<() => void> {
  * in the rest of the form.
  */
 export async function checkVideoFile(file: File): Promise<VideoPlan> {
-  if (!canUploadHere) throw new Error('Upload videos from the website.');
+  if (!canUploadHere) throw new Error(strings().uploads.websiteOnly);
   requireVideo(file);
   return planVideo(file);
 }
@@ -174,7 +167,7 @@ export async function uploadExerciseVideo(
   onStage: (stage: UploadStage) => void,
   signal?: AbortSignal
 ): Promise<UploadResult> {
-  if (!canUploadHere) throw new Error('Upload videos from the website.');
+  if (!canUploadHere) throw new Error(strings().uploads.websiteOnly);
   requireVideo(file);
 
   const release = await keepScreenOn();
@@ -183,10 +176,7 @@ export async function uploadExerciseVideo(
     const plan = await planVideo(file);
     const video = await prepareVideo(file, plan, keepSound, onStage, signal);
     if (video.size > MAX_VIDEO_MB * 1024 * 1024) {
-      throw new Error(
-        `Even compressed, this video is ${Math.round(video.size / 1024 / 1024)} MB — the limit is ${MAX_VIDEO_MB} MB. ` +
-          'Trim it to just the exercise and try again.'
-      );
+      throw new Error(strings().uploads.tooBig(Math.round(video.size / 1024 / 1024), MAX_VIDEO_MB));
     }
 
     onStage({ step: 'checking' });

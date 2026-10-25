@@ -6,6 +6,7 @@ import { ClientRow, daysSince } from '@/components/admin';
 import { TextField } from '@/components/form';
 import { Button, Card, Loader, Screen, SegmentedControl, Text } from '@/components/ui';
 import { useDirectory } from '@/directory/DirectoryProvider';
+import { useI18n } from '@/i18n';
 
 type Filter = 'all' | 'attention' | 'unplanned';
 
@@ -13,6 +14,7 @@ export default function ClientsScreen() {
   const router = useRouter();
   const { roster, loading, error, reload } = useDirectory();
   const { can } = useAccess();
+  const { t } = useI18n();
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -40,16 +42,15 @@ export default function ClientsScreen() {
   return (
     <Screen scroll>
       <Text variant="title" align="center" style={styles.pageTitle}>
-        Clients
+        {t.clients.title}
       </Text>
       <Text variant="caption" color="textSecondary" align="center" style={styles.pageNote}>
-        {roster.length} on the books · {attentionCount} need a nudge
-        {unplannedCount > 0 ? ` · ${unplannedCount} without a week` : ''}
+        {t.clients.summary(roster.length, attentionCount, unplannedCount)}
       </Text>
 
       {can('clients.create') ? (
         <Button
-          label="Create Client Account"
+          label={t.clients.create}
           onPress={() => router.push('/admin/create-user')}
           style={styles.create}
         />
@@ -59,16 +60,16 @@ export default function ClientsScreen() {
         <TextField
           value={query}
           onChangeText={setQuery}
-          placeholder="Search by name or email"
+          placeholder={t.clients.search}
           autoCapitalize="none"
         />
       </View>
 
       <SegmentedControl<Filter>
         segments={[
-          { label: 'All', value: 'all' },
-          { label: 'Needs attention', value: 'attention' },
-          { label: 'No week', value: 'unplanned' },
+          { label: t.clients.all, value: 'all' },
+          { label: t.clients.attention, value: 'attention' },
+          { label: t.clients.noWeek, value: 'unplanned' },
         ]}
         value={filter}
         onChange={setFilter}
@@ -78,26 +79,26 @@ export default function ClientsScreen() {
         {error && roster.length === 0 ? (
           <Card style={styles.empty}>
             <Text variant="heading" align="center">
-              Could not load the roster
+              {t.clients.loadFailed}
             </Text>
             <Text variant="caption" color="textSecondary" align="center" style={styles.emptyNote}>
               {error}
             </Text>
-            <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.retry} />
+            <Button label={t.common.tryAgain} variant="secondary" onPress={() => void reload()} style={styles.retry} />
           </Card>
         ) : loading && roster.length === 0 ? (
           <Loader />
         ) : clients.length === 0 ? (
           <Card style={styles.empty}>
             <Text variant="heading" align="center">
-              No clients match
+              {t.clients.noMatch}
             </Text>
             <Text variant="caption" color="textSecondary" align="center" style={styles.emptyNote}>
               {filter === 'attention'
-                ? 'Everyone has checked in recently. Good week.'
+                ? t.clients.allCheckedIn
                 : filter === 'unplanned'
-                  ? 'Every client has a week written.'
-                  : 'Try a different search, or create the account.'}
+                  ? t.clients.allPlanned
+                  : t.clients.tryDifferent}
             </Text>
           </Card>
         ) : (

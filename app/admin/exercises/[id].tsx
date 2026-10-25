@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/common';
 import { TextField } from '@/components/form';
 import { VideoPoster } from '@/components/session';
 import { Button, Card, Loader, Screen, Text } from '@/components/ui';
-import { CATEGORY_LABEL, EXERCISE_CATEGORIES, Exercise, ExerciseCategory } from '@/data';
+import { EXERCISE_CATEGORIES, Exercise, ExerciseCategory } from '@/data';
 import {
   MAX_SOURCE_MINUTES,
   UploadCancelled,
@@ -22,6 +22,7 @@ import {
   useExerciseLibrary,
 } from '@/exercises';
 import { useHover } from '@/hooks/useHover';
+import { strings, useI18n } from '@/i18n';
 import { useDismiss } from '@/navigation/useDismiss';
 import { useTheme } from '@/theme';
 
@@ -94,38 +95,32 @@ function formatDuration(seconds: number): string {
 
 /** What will happen to the chosen file, in a line. */
 function describePlan(plan: VideoPlan, keepSound: boolean): string {
-  if (plan.action === 'copy') return keepSound ? 'Already small — sent as it is' : 'Already small — sent as it is, without the sound';
-  if (!plan.target) return 'Will be converted to MP4 before it uploads';
+  const copy = strings().exerciseEditor;
+  if (plan.action === 'copy') return keepSound ? copy.planCopy : copy.planCopyMuted;
+  if (!plan.target) return copy.planConvert;
   const shrinking = plan.target.width < plan.width || plan.target.height < plan.height;
   const short = Math.min(plan.target.width, plan.target.height);
-  return shrinking ? `Will be resized to ${short}p and compressed before it uploads` : 'Will be compressed before it uploads';
+  return shrinking ? copy.planResize(short) : copy.planCompress;
 }
 
 /** Tells the admin up front when the slow converter is the one that will run, and what to do about it. */
 function slowWarning(plan: VideoPlan, keepSound: boolean): string | null {
+  const copy = strings().exerciseEditor;
   if (plan.action === 'compress' && plan.slow) {
-    const format = plan.codecLabel ? `${plan.codecLabel} video` : 'this kind of video';
-    return (
-      `This browser cannot read ${format} directly, so converting it can take several minutes — keep this tab open. ` +
-      'Chrome or Safari on a phone, Mac or Windows computer is usually much faster.'
-    );
+    return copy.slowVideo(plan.codecLabel ? copy.codecVideo(plan.codecLabel) : copy.unknownVideo);
   }
-  if (keepSound && plan.soundSlow) {
-    return (
-      'This browser cannot convert this clip’s sound itself, so keeping it can take a few minutes — keep this tab open. ' +
-      'Turning the sound off, or Chrome or Safari on a phone, Mac or Windows computer, is quicker.'
-    );
-  }
+  if (keepSound && plan.soundSlow) return copy.slowSound;
   return null;
 }
 
 /** What to add to the "uploaded" message: how much smaller it got, and a clip that turned out to have no sound. */
 function resultNote(original: File, result: UploadResult, keepSound: boolean): string {
+  const copy = strings().exerciseEditor;
   const size =
     result.compressed && result.sentBytes < original.size
-      ? ` Compressed from ${formatSize(original.size)} to ${formatSize(result.sentBytes)}.`
+      ? copy.compressed(formatSize(original.size), formatSize(result.sentBytes))
       : '';
-  const silent = keepSound && !result.hasSound ? ' The clip has no sound, so it plays silent.' : '';
+  const silent = keepSound && !result.hasSound ? copy.silentClip : '';
   return size + silent;
 }
 
@@ -155,31 +150,34 @@ function CategoryChip({ label, active, onPress }: { label: string; active: boole
 }
 
 function formatWait(seconds: number): string {
-  if (seconds < 50) return 'less than a minute';
+  const copy = strings().exerciseEditor;
+  if (seconds < 50) return copy.waitUnderMinute;
   const minutes = Math.round(seconds / 60);
-  return minutes <= 1 ? 'about a minute' : `about ${minutes} minutes`;
+  return minutes <= 1 ? copy.waitMinute : copy.waitMinutes(minutes);
 }
 
 function stageLabel(stage: UploadStage): string {
+  const copy = strings().exerciseEditor;
   switch (stage.step) {
     case 'checking':
-      return 'Checking the video…';
+      return copy.stageChecking;
     case 'loading':
-      return `Getting the converter ready… ${Math.round(stage.progress * 100)}%`;
+      return copy.stageLoading(Math.round(stage.progress * 100));
     case 'compressing':
       return (
-        `Compressing… ${Math.round(stage.progress * 100)}%` +
-        (stage.secondsLeft != null ? ` · ${formatWait(stage.secondsLeft)} left` : '')
+        copy.stageCompressing(Math.round(stage.progress * 100)) +
+        (stage.secondsLeft != null ? copy.stageLeft(formatWait(stage.secondsLeft)) : '')
       );
     case 'uploading':
-      return `Uploading… ${Math.round(stage.progress * 100)}%`;
+      return copy.stageUploading(Math.round(stage.progress * 100));
     case 'saving':
-      return 'Saving…';
+      return copy.stageSaving;
   }
 }
 
 function UploadProgress({ stage, onCancel }: { stage: UploadStage; onCancel: () => void }) {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const fraction = stage.step === 'saving' ? 1 : stage.step === 'checking' ? 0 : stage.progress;
   const label = stageLabel(stage);
 
@@ -192,7 +190,7 @@ function UploadProgress({ stage, onCancel }: { stage: UploadStage; onCancel: () 
         {stage.step !== 'saving' ? (
           <Pressable onPress={onCancel} hitSlop={8} accessibilityRole="button">
             <Text variant="label" color="accent">
-              Cancel
+              {t.exerciseEditor.cancel}
             </Text>
           </Pressable>
         ) : null}
@@ -264,6 +262,8 @@ function ExerciseEditor() {
   const dismiss = useDismiss('/admin/exercises');
   const { id } = useLocalSearchParams<{ id: string }>();
   const library = useExerciseLibrary();
+  const { t } = useI18n();
+  const copy = t.exerciseEditor;
 
   const isNew = !id || id === 'new';
   const existing = isNew ? null : library.find(id);
@@ -308,8 +308,8 @@ function ExerciseEditor() {
   const set = (key: TextKey) => (value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   const problems: string[] = [];
-  if (form.name.trim().length < 2) problems.push('Give it a name.');
-  if (!form.category) problems.push('Pick a category.');
+  if (form.name.trim().length < 2) problems.push(copy.needName);
+  if (!form.category) problems.push(copy.needCategory);
 
   const patch = existing ? changesBetween(form, formFrom(existing)) : null;
   const hiddenChanged = !!existing && hidden !== !!existing.hidden;
@@ -351,7 +351,7 @@ function ExerciseEditor() {
 
   /** Converts and uploads the chosen file onto a movement that already exists. */
   const uploadTo = async (exerciseId: string): Promise<UploadResult> => {
-    if (!file) throw new Error('Choose a video first.');
+    if (!file) throw new Error(copy.chooseFirst);
     const controller = new AbortController();
     abort.current = controller;
     try {
@@ -373,20 +373,17 @@ function ExerciseEditor() {
     try {
       const result = await uploadTo(existing.id);
       setVideoNotice(
-        (replacing
-          ? 'Video replaced. Clients see the new one from now on.'
-          : result.exercise.hidden
-            ? 'Video uploaded. The exercise is still hidden from the picker.'
-            : 'Video uploaded — this exercise can now be added to weeks.') + resultNote(file, result, keepSound)
+        (replacing ? copy.replaced : result.exercise.hidden ? copy.uploadedHidden : copy.uploadedLive) +
+          resultNote(file, result, keepSound)
       );
     } catch (err) {
       setVideoError(
         err instanceof UploadCancelled
           ? replacing
-            ? 'Upload cancelled. The current video is unchanged.'
-            : 'Upload cancelled.'
+            ? copy.cancelledKept
+            : copy.cancelled
           : replacing
-            ? `${describe(err)} The current video is unchanged.`
+            ? copy.failedKept(describe(err))
             : describe(err)
       );
     } finally {
@@ -402,7 +399,7 @@ function ExerciseEditor() {
       const saved = await adminApi.updateExercise(existing.id, { video_key: '' });
       library.remember(saved);
       setConfirmRemove(false);
-      setVideoNotice('Video removed. This exercise is a draft until it has a new video.');
+      setVideoNotice(copy.removed);
     } catch (err) {
       setVideoError(describe(err));
     } finally {
@@ -419,7 +416,7 @@ function ExerciseEditor() {
     try {
       const saved = await adminApi.updateExercise(existing.id, { sound_on: on });
       library.remember(saved);
-      setVideoNotice(on ? 'Sound on — members hear this video.' : 'Muted — members watch this video without sound.');
+      setVideoNotice(on ? copy.soundOnNotice : copy.mutedNotice);
     } catch (err) {
       setVideoError(describe(err));
     } finally {
@@ -454,26 +451,20 @@ function ExerciseEditor() {
           clearVideoMessages();
           try {
             const result = await uploadTo(created.id);
-            setNotice(
-              'Created. The video is live — this exercise can now be added to weeks.' + resultNote(file, result, keepSound)
-            );
+            setNotice(copy.createdLive + resultNote(file, result, keepSound));
           } catch (err) {
-            setNotice('Created as a draft.');
-            setVideoError(
-              err instanceof UploadCancelled
-                ? 'Upload cancelled. Choose the video again to add it.'
-                : `${describe(err)} Choose the video again to retry.`
-            );
+            setNotice(copy.createdDraft);
+            setVideoError(err instanceof UploadCancelled ? copy.createCancelled : copy.createRetry(describe(err)));
           } finally {
             setVideoBusy(false);
           }
         } else {
-          setNotice('Created as a draft. Add a video to make it available.');
+          setNotice(copy.createdNeedsVideo);
         }
       } else if (existing) {
         const saved = await adminApi.updateExercise(existing.id, { ...patch, ...(hiddenChanged ? { hidden } : {}) });
         library.remember(saved);
-        setNotice('Saved.');
+        setNotice(copy.saved);
       }
     } catch (err) {
       setError(describe(err));
@@ -485,13 +476,13 @@ function ExerciseEditor() {
   if (!isNew && !existing) {
     return (
       <Screen scroll>
-        <PageHeader title="Exercise" onBack={dismiss} />
+        <PageHeader title={copy.exercise} onBack={dismiss} />
         {library.loading ? (
           <Loader />
         ) : (
           <Card style={styles.missing}>
             <Text variant="caption" color="textSecondary" align="center">
-              This exercise is not in the library.
+              {copy.notInLibrary}
             </Text>
           </Card>
         )}
@@ -502,15 +493,10 @@ function ExerciseEditor() {
   return (
     <Screen scroll keyboardAvoiding>
       <PageHeader
-        title={isNew ? 'New Exercise' : form.name.trim() || 'Exercise'}
+        // The name as stored, not translated: this is the screen that edits it.
+        title={isNew ? copy.newTitle : form.name.trim() || copy.exercise}
         subtitle={
-          isNew
-            ? 'Write it up, add the video, and it is ready for any client’s week.'
-            : existing?.hidden
-              ? 'Hidden from the picker'
-              : hasVideo
-                ? 'Live — coaches can add it to weeks'
-                : 'Draft — needs a video before it can be used'
+          isNew ? copy.newSub : existing?.hidden ? copy.hiddenSub : hasVideo ? copy.liveSub : copy.draftSub
         }
         onBack={dismiss}
       />
@@ -518,40 +504,34 @@ function ExerciseEditor() {
       {readOnly ? (
         <Card variant="alt" style={styles.section}>
           <Text variant="caption" color="textSecondary">
-            This server does not have the exercise library yet, so exercises cannot be edited here.
+            {copy.readOnly}
           </Text>
         </Card>
       ) : null}
 
       {/* ---- The demonstration ---- */}
       <Text variant="heading" style={styles.sectionTitle}>
-        Video
+        {copy.video}
       </Text>
       <Card style={styles.videoCard}>
         {hasVideo && existing ? (
           <View style={styles.videoBlock}>
             {file ? (
               <Text variant="label" color="textSecondary">
-                CURRENT VIDEO — STAYS LIVE UNTIL THE NEW ONE IS UPLOADED
+                {copy.currentStays}
               </Text>
             ) : null}
             <VideoPoster
               key={existing.video_url}
               videoUrl={existing.video_url}
               posterUrl={existing.thumbnail_url}
-              caption="What members see"
+              caption={copy.whatMembersSee}
               sound={soundOn}
             />
             {!file && !confirmRemove ? (
               <SwitchRow
-                title="Play with sound"
-                caption={
-                  !existing.video_has_sound
-                    ? 'This video was uploaded without sound. To add it, replace the video and keep the sound on.'
-                    : soundOn
-                      ? 'Members hear this video’s sound.'
-                      : 'Muted — members watch it without sound.'
-                }
+                title={copy.playWithSound}
+                caption={!existing.video_has_sound ? copy.noSoundTrack : soundOn ? copy.soundOnCaption : copy.mutedCaption}
                 value={soundOn}
                 onValueChange={(on) => void setSound(on)}
                 disabled={readOnly || busy || !existing.video_has_sound}
@@ -562,7 +542,7 @@ function ExerciseEditor() {
           <View style={styles.noVideo}>
             <Ionicons name="videocam-off-outline" size={26} color={theme.colors.textMuted} />
             <Text variant="caption" color="textSecondary" align="center">
-              No video yet. It cannot go on anyone’s week until it has one.
+              {copy.noVideo}
             </Text>
           </View>
         ) : null}
@@ -577,7 +557,7 @@ function ExerciseEditor() {
             <Ionicons name="film-outline" size={22} color={theme.colors.accent} />
             <View style={styles.fileText}>
               <Text variant="label" color="accentText">
-                {hasVideo ? 'NEW VIDEO' : 'VIDEO TO UPLOAD'}
+                {hasVideo ? copy.newVideo : copy.toUpload}
               </Text>
               <Text variant="bodyStrong" numberOfLines={1}>
                 {file.name}
@@ -585,7 +565,7 @@ function ExerciseEditor() {
               <Text variant="caption" color="textSecondary">
                 {formatSize(file.size)}
                 {filePlan?.durationSec ? ` · ${formatDuration(filePlan.durationSec)}` : ''}
-                {isNew ? ' · uploads when you create the exercise' : ''}
+                {isNew ? copy.uploadsOnCreate : ''}
               </Text>
               {filePlan && !stage ? (
                 <Text variant="caption" color="textSecondary">
@@ -598,14 +578,8 @@ function ExerciseEditor() {
 
         {file && filePlan ? (
           <SwitchRow
-            title="Keep the sound"
-            caption={
-              !fileHasSound
-                ? 'This clip has no sound.'
-                : keepSound
-                  ? 'Members hear it. You can mute it later without uploading again.'
-                  : 'Removed from the video — members watch it without sound.'
-            }
+            title={copy.keepSound}
+            caption={!fileHasSound ? copy.clipNoSound : keepSound ? copy.keepSoundOn : copy.keepSoundOff}
             value={keepSound && fileHasSound}
             onValueChange={setKeepSound}
             disabled={busy || !fileHasSound}
@@ -622,10 +596,9 @@ function ExerciseEditor() {
 
         {confirmRemove ? (
           <View style={[styles.confirm, { borderColor: theme.colors.border, borderRadius: theme.radius.md }]}>
-            <Text variant="bodyStrong">Remove this video?</Text>
+            <Text variant="bodyStrong">{copy.removeTitle}</Text>
             <Text variant="caption" color="textSecondary">
-              Clients who have this exercise will see “video coming soon” until you add a new one, and it leaves
-              the picker until then. The name and instructions stay as they are.
+              {copy.removeNote}
             </Text>
           </View>
         ) : null}
@@ -643,11 +616,11 @@ function ExerciseEditor() {
 
         {readOnly ? null : !canUploadHere ? (
           <Text variant="caption" color="textMuted" align="center">
-            To add, replace or remove a video, open this page on the website.
+            {copy.websiteOnly}
           </Text>
         ) : isNew ? (
           <Button
-            label={checkingFile ? 'Checking…' : file ? 'Choose a Different Video' : 'Choose Video'}
+            label={checkingFile ? copy.checking : file ? copy.chooseDifferent : copy.chooseVideo}
             variant="secondary"
             loading={checkingFile}
             disabled={busy}
@@ -656,7 +629,7 @@ function ExerciseEditor() {
         ) : confirmRemove ? (
           <View style={styles.buttonRow}>
             <Button
-              label="Keep Video"
+              label={copy.keepVideo}
               variant="ghost"
               fullWidth={false}
               disabled={videoBusy}
@@ -664,7 +637,7 @@ function ExerciseEditor() {
               style={styles.rowButton}
             />
             <Button
-              label="Remove Video"
+              label={copy.removeVideo}
               fullWidth={false}
               loading={videoBusy}
               onPress={() => void removeVideo()}
@@ -674,7 +647,7 @@ function ExerciseEditor() {
         ) : file ? (
           <View style={styles.buttonRow}>
             <Button
-              label="Cancel"
+              label={copy.cancel}
               variant="ghost"
               fullWidth={false}
               disabled={videoBusy}
@@ -685,7 +658,7 @@ function ExerciseEditor() {
               style={styles.rowButton}
             />
             <Button
-              label={hasVideo ? 'Upload and Replace' : 'Upload Video'}
+              label={hasVideo ? copy.uploadReplace : copy.uploadVideo}
               fullWidth={false}
               loading={videoBusy}
               disabled={busy && !videoBusy}
@@ -697,7 +670,7 @@ function ExerciseEditor() {
           <View style={styles.buttonRow}>
             {hasVideo ? (
               <Button
-                label="Remove Video"
+                label={copy.removeVideo}
                 variant="ghost"
                 fullWidth={false}
                 disabled={busy}
@@ -709,7 +682,7 @@ function ExerciseEditor() {
               />
             ) : null}
             <Button
-              label={checkingFile ? 'Checking…' : hasVideo ? 'Replace Video' : 'Upload Video'}
+              label={checkingFile ? copy.checking : hasVideo ? copy.replaceVideo : copy.uploadVideo}
               variant="secondary"
               fullWidth={false}
               loading={checkingFile}
@@ -722,28 +695,27 @@ function ExerciseEditor() {
 
         {!readOnly && canUploadHere ? (
           <Text variant="caption" color="textMuted" align="center">
-            Any video from a phone or camera, up to {MAX_SOURCE_MINUTES} minutes. It is resized to 720p and compressed
-            before it uploads. The sound is removed unless you choose to keep it.
+            {copy.uploadHelp(MAX_SOURCE_MINUTES)}
           </Text>
         ) : null}
       </Card>
 
       {/* ---- The guide ---- */}
       <Text variant="heading" style={styles.sectionTitle}>
-        Details
+        {copy.details}
       </Text>
       <View style={styles.form}>
-        <TextField label="NAME" value={form.name} onChangeText={set('name')} placeholder="Copenhagen Plank" maxLength={80} autoCapitalize="words" />
+        <TextField label={copy.name} value={form.name} onChangeText={set('name')} placeholder="Copenhagen Plank" maxLength={80} autoCapitalize="words" />
 
         <View style={styles.categoryBlock}>
           <Text variant="label" color="textSecondary">
-            CATEGORY
+            {copy.category}
           </Text>
           <View style={styles.chips} accessibilityRole="radiogroup">
             {EXERCISE_CATEGORIES.map((category) => (
               <CategoryChip
                 key={category}
-                label={CATEGORY_LABEL[category]}
+                label={t.categories[category]}
                 active={form.category === category}
                 onPress={() => setForm((current) => ({ ...current, category }))}
               />
@@ -751,24 +723,24 @@ function ExerciseEditor() {
           </View>
         </View>
 
-        <TextField label="WHAT IT WORKS" value={form.focus} onChangeText={set('focus')} placeholder="Adductors" maxLength={100} autoCapitalize="sentences" />
-        <TextField label="DEFAULT SETS" value={form.suggested_sets} onChangeText={set('suggested_sets')} placeholder="3 x 20s each side" maxLength={80} autoCapitalize="none" />
-        <TextField label="PREREQUISITES" value={form.prerequisites} onChangeText={set('prerequisites')} placeholder="None" maxLength={200} autoCapitalize="sentences" />
+        <TextField label={copy.focus} value={form.focus} onChangeText={set('focus')} placeholder="Adductors" maxLength={100} autoCapitalize="sentences" />
+        <TextField label={copy.sets} value={form.suggested_sets} onChangeText={set('suggested_sets')} placeholder="3 x 20s each side" maxLength={80} autoCapitalize="none" />
+        <TextField label={copy.prerequisites} value={form.prerequisites} onChangeText={set('prerequisites')} placeholder="None" maxLength={200} autoCapitalize="sentences" />
         <TextField
-          label="INSTRUCTIONS"
+          label={copy.instructions}
           value={form.instructions}
           onChangeText={set('instructions')}
-          placeholder="How to set up and do it, step by step."
+          placeholder={copy.instructionsPlaceholder}
           multiline
           minHeight={120}
           maxLength={2000}
           autoCapitalize="sentences"
         />
         <TextField
-          label="PURPOSE"
+          label={copy.purpose}
           value={form.purpose}
           onChangeText={set('purpose')}
-          placeholder="Why it is on the week — what it does for the member."
+          placeholder={copy.purposePlaceholder}
           multiline
           minHeight={100}
           maxLength={2000}
@@ -780,8 +752,8 @@ function ExerciseEditor() {
       {!isNew ? (
         <Card style={styles.section}>
           <SwitchRow
-            title="Hide from the picker"
-            caption="Coaches cannot add it to new weeks. Clients who already have it keep it."
+            title={copy.hide}
+            caption={copy.hideNote}
             value={hidden}
             onValueChange={setHidden}
             disabled={readOnly || busy}
@@ -811,7 +783,7 @@ function ExerciseEditor() {
 
       {readOnly ? null : (
         <Button
-          label={isNew ? (file ? 'Create and Upload' : 'Create Exercise') : 'Save Changes'}
+          label={isNew ? (file ? copy.createUpload : copy.create) : copy.save}
           disabled={problems.length > 0 || !textDirty || busy}
           loading={saving}
           onPress={() => void save()}

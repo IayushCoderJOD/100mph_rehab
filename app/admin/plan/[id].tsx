@@ -14,16 +14,18 @@ import { adminApi } from '@/api';
 import { PageHeader } from '@/components/common';
 import { WeeklyPlanEditor } from '@/components/plan';
 import { Button, Card, Loader, Screen, Text } from '@/components/ui';
-import { DAY_LABEL, mock } from '@/data';
+import { mock } from '@/data';
 import { useDirectory } from '@/directory/DirectoryProvider';
 import { useExerciseLibrary } from '@/exercises';
 import { useRemote } from '@/hooks/useRemote';
+import { useI18n } from '@/i18n';
 
 function PlanEditorScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userById, replacePlan } = useDirectory();
   const library = useExerciseLibrary();
+  const { t } = useI18n();
   const client = userById(id ?? null);
 
   const remote = useRemote(() => adminApi.clientPlan(id as string), [id], !!id);
@@ -49,7 +51,7 @@ function PlanEditorScreen() {
   const save = async () => {
     if (!draft || !id || saving) return;
     if (missing.length > 0) {
-      setError(`Every exercise needs a prescription. Check ${missing.map((d) => DAY_LABEL[d]).join(', ')}.`);
+      setError(t.common.missingPrescriptions(missing.map((d) => t.days.long[d]).join(t.common.listSeparator)));
       return;
     }
     setSaving(true);
@@ -66,8 +68,8 @@ function PlanEditorScreen() {
   return (
     <Screen scroll keyboardAvoiding>
       <PageHeader
-        title={client ? `${client.full_name.split(' ')[0]}'s Week` : 'Training Week'}
-        subtitle="Pick a day, add exercises, say how much of each."
+        title={client ? t.planScreen.title(client.full_name.split(' ')[0]) : t.planScreen.fallbackTitle}
+        subtitle={t.planScreen.subtitle}
         onBack={() => router.back()}
       />
 
@@ -76,7 +78,7 @@ function PlanEditorScreen() {
           <Text variant="caption" color="textSecondary" align="center">
             {remote.error}
           </Text>
-          <Button label="Try again" variant="secondary" onPress={() => void remote.reload()} style={styles.retry} />
+          <Button label={t.common.tryAgain} variant="secondary" onPress={() => void remote.reload()} style={styles.retry} />
         </Card>
       ) : !draft ? (
         <Loader />
@@ -97,9 +99,7 @@ function PlanEditorScreen() {
 
           <Button
             label={
-              trainingDayCount(draft) === 0
-                ? 'Save as all rest days'
-                : `Save week · ${trainingDayCount(draft)} training day${trainingDayCount(draft) === 1 ? '' : 's'}`
+              trainingDayCount(draft) === 0 ? t.planScreen.saveRest : t.planScreen.saveWeek(trainingDayCount(draft))
             }
             variant={trainingDayCount(draft) === 0 ? 'secondary' : 'primary'}
             disabled={!dirty}
@@ -108,7 +108,7 @@ function PlanEditorScreen() {
             style={styles.save}
           />
           <Text variant="caption" color="textMuted" align="center" style={styles.footnote}>
-            {dirty ? 'Unsaved changes.' : 'This is what the client sees on their home screen.'}
+            {dirty ? t.planScreen.unsaved : t.planScreen.clientSees}
           </Text>
         </View>
       )}

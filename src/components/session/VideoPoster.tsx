@@ -3,6 +3,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { mediaUrl } from '@/api';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 
@@ -28,6 +29,7 @@ type VideoPosterProps = {
  */
 export function VideoPoster({ videoUrl, posterUrl, caption, sound = false }: VideoPosterProps) {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const [started, setStarted] = useState(false);
 
   const uri = mediaUrl(videoUrl);
@@ -90,7 +92,7 @@ export function VideoPoster({ videoUrl, posterUrl, caption, sound = false }: Vid
         onPress={() => setStarted(true)}
         disabled={!playable}
         accessibilityRole="button"
-        accessibilityLabel={playable ? 'Play demonstration' : 'Demonstration coming soon'}
+        accessibilityLabel={playable ? t.video.play : t.video.comingSoonA11y}
         style={({ pressed }) => [
           styles.play,
           {
@@ -122,7 +124,7 @@ export function VideoPoster({ videoUrl, posterUrl, caption, sound = false }: Vid
           align="center"
           style={styles.caption}
         >
-          {caption ?? (playable ? 'Watch the demonstration' : 'Demonstration video coming soon')}
+          {caption ?? (playable ? t.video.watch : t.video.comingSoon)}
         </Text>
       </View>
     </View>

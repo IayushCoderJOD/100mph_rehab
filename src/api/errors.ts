@@ -1,3 +1,5 @@
+import { strings } from '@/i18n/strings';
+
 /**
  * The server speaks one error envelope (backend README §7.1):
  *   { "error": { "code", "message", "details", "request_id" } }
@@ -60,34 +62,15 @@ export class ApiError extends Error {
   }
 }
 
-/** User-facing copy, keyed by the server's stable code. */
-const MESSAGES: Record<string, string> = {
-  invalid_credentials: 'That email and password do not match an account.',
-  account_suspended: 'This account has been suspended. Please contact your coach.',
-  too_many_attempts: 'Too many attempts. Please wait a few minutes and try again.',
-  email_already_exists: 'An account with that email already exists.',
-  phone_already_exists: 'An account with that phone number already exists.',
-  password_too_weak: 'Passwords need at least 8 characters.',
-  current_password_incorrect: 'Your current password is not right.',
-  reset_token_invalid: 'That reset link is invalid or has expired.',
-  program_not_found: 'That program no longer exists.',
-  exercise_not_found: 'One of those exercises is no longer in the catalogue.',
-  schedule_invalid_day: 'One of the days in that week is not valid.',
-  already_assigned: 'That exercise is already assigned to this client.',
-  last_admin: 'This is the practice’s only admin account, so it cannot be deleted. Create another admin account first.',
-  unsupported_media: 'That file cannot be used. Upload an MP4 video of up to 150 MB.',
-  upload_not_found: 'The upload did not finish. Please try again.',
-  media_not_configured: 'Video uploads are not set up on the server yet.',
-  validation_failed: 'Please check the details and try again.',
-  forbidden: 'You do not have access to that.',
-  not_found: 'We could not find that.',
-  network_error: 'Cannot reach the server. Check your connection and try again.',
-  internal_error: 'Something went wrong at our end. Please try again.',
-};
-
+/**
+ * User-facing copy, keyed by the server's stable code, in the language the app
+ * is showing. The wording itself lives with the rest of the app's copy in
+ * src/i18n.
+ */
 export function messageFor(error: unknown): string {
+  const messages = strings().errors;
   if (error instanceof ApiError) {
-    return MESSAGES[error.code] ?? MESSAGES.internal_error;
+    return messages[error.code] ?? messages.internal_error;
   }
-  return MESSAGES.internal_error;
+  return messages.internal_error;
 }

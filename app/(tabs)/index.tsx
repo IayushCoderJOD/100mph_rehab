@@ -7,7 +7,8 @@ import { AppHeader, ThemeToggle } from '@/components/common';
 import { CheckInRow, PracticeOverview, WeekStrip, WorkoutCompleteCard } from '@/components/home';
 import { SessionSummaryCard } from '@/components/session';
 import { Button, Card, Loader, Logo, Screen, Text } from '@/components/ui';
-import { DAY_LABEL, firstName } from '@/data';
+import { firstName } from '@/data';
+import { useI18n } from '@/i18n';
 import { usePlan } from '@/plan/PlanProvider';
 
 /** Rough, for the summary card: a line of rehab work is a few minutes. */
@@ -20,8 +21,9 @@ export default function HomeScreen() {
   const { hasCheckedInToday, todayCheckIn } = useCheckIns();
   const { user } = useAuth();
   const { can, isAdmin } = useAccess();
+  const { t } = useI18n();
 
-  const greeting = firstName(user?.full_name) ?? 'there';
+  const greeting = firstName(user?.full_name) ?? t.home.greetingFallback;
 
   const todayPlan = today?.plan ?? [];
   const isRestDay = todayPlan.length === 0;
@@ -34,7 +36,7 @@ export default function HomeScreen() {
   return (
     <Screen scroll>
       <AppHeader
-        subtitle="Welcome back"
+        subtitle={t.home.welcomeBack}
         title={greeting}
         center={<Logo height={width < 380 ? 26 : 34} />}
         right={<ThemeToggle />}
@@ -54,7 +56,7 @@ export default function HomeScreen() {
           <WeekStrip
             days={week}
             subtitle={
-              plan?.updated_by_name ? `Written by ${plan.updated_by_name}` : 'Your Training Plan'
+              plan?.updated_by_name ? t.home.writtenBy(plan.updated_by_name) : t.home.trainingPlan
             }
             onSelectDay={(day) => router.push(`/session?date=${day.iso_date}`)}
           />
@@ -62,22 +64,22 @@ export default function HomeScreen() {
           {error ? (
             <Card variant="alt" style={styles.notice}>
               <Text variant="bodyStrong" align="center">
-                Could not load your week
+                {t.home.loadFailed}
               </Text>
               <Text variant="caption" color="textSecondary" align="center" style={styles.noticeNote}>
                 {error}
               </Text>
-              <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.noticeAction} />
+              <Button label={t.common.tryAgain} variant="secondary" onPress={() => void reload()} style={styles.noticeAction} />
             </Card>
           ) : loading && !plan ? (
             <Loader />
           ) : !hasPlan ? (
             <Card variant="alt" style={styles.notice}>
               <Text variant="heading" align="center">
-                Your week is not set yet
+                {t.home.notSetTitle}
               </Text>
               <Text variant="subtitle" color="textSecondary" align="center" style={styles.noticeNote}>
-                Your physio writes your training week. Once they have, it appears here day by day.
+                {t.home.notSetNote}
               </Text>
             </Card>
           ) : completedToday ? (
@@ -85,16 +87,16 @@ export default function HomeScreen() {
           ) : isRestDay ? (
             <Card variant="alt" style={styles.rest}>
               <Text variant="heading" align="center">
-                Today&apos;s Rest Day
+                {t.home.restTitle}
               </Text>
               <Text variant="subtitle" color="textSecondary" align="center" style={styles.noticeNote}>
-                Recovery is part of the plan.
+                {t.home.restNote}
               </Text>
             </Card>
           ) : (
             <SessionSummaryCard
-              kicker="Today's Workout"
-              sessionName={today ? `${DAY_LABEL[today.day_of_week]} Session` : 'Today'}
+              kicker={t.home.todaysWorkout}
+              sessionName={today ? t.home.daySession(t.days.long[today.day_of_week]) : t.home.today}
               exerciseCount={todayPlan.length}
               durationMin={todayPlan.length * MINUTES_PER_EXERCISE}
               onStart={() => router.push('/session')}
@@ -104,13 +106,13 @@ export default function HomeScreen() {
           {missed && !error ? (
             <Card style={styles.missed}>
               <View style={styles.missedText}>
-                <Text variant="bodyStrong">Trained on {DAY_LABEL[missed.day_of_week]}?</Text>
+                <Text variant="bodyStrong">{t.home.missedTitle(t.days.long[missed.day_of_week])}</Text>
                 <Text variant="caption" color="textSecondary">
-                  It is not logged yet. You can still record it.
+                  {t.home.missedNote}
                 </Text>
               </View>
               <Button
-                label="Log it"
+                label={t.home.logIt}
                 variant="secondary"
                 fullWidth={false}
                 onPress={() => router.push(`/session?date=${missed.iso_date}`)}
@@ -122,7 +124,7 @@ export default function HomeScreen() {
             completed={hasCheckedInToday}
             detail={
               todayCheckIn?.pain_score != null
-                ? `Pain logged at ${todayCheckIn.pain_score}/10. Tap to update.`
+                ? t.home.painLogged(todayCheckIn.pain_score)
                 : undefined
             }
             onPress={() => router.push('/check-in')}

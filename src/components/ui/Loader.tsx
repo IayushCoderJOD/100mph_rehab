@@ -1,4 +1,5 @@
 import { ActivityIndicator, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 
 /**
@@ -8,8 +9,9 @@ import { useTheme } from '@/theme';
  */
 export function Loader({ style }: { style?: StyleProp<ViewStyle> }) {
   const { theme } = useTheme();
+  const { t } = useI18n();
   return (
-    <View style={[styles.wrap, style]} accessibilityRole="progressbar" accessibilityLabel="Loading">
+    <View style={[styles.wrap, style]} accessibilityRole="progressbar" accessibilityLabel={t.common.loading}>
       <ActivityIndicator size="large" color={theme.colors.accent} />
     </View>
   );

@@ -7,11 +7,13 @@ import { describePain } from '@/components/checkin';
 import { SessionStats } from '@/components/session';
 import { Button, Card, Loader, Screen, Text } from '@/components/ui';
 import { formatShortDate, formatLongDate } from '@/data';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 
 export default function ProgressScreen() {
   const router = useRouter();
   const { theme } = useTheme();
+  const { t } = useI18n();
   const { checkIns, summary, recent, averageScore, hasCheckedInToday, loading, error, reload } =
     useCheckIns();
 
@@ -37,16 +39,16 @@ export default function ProgressScreen() {
     return (
       <Screen scroll>
         <Text variant="title" align="center" style={styles.pageTitle}>
-          Progress
+          {t.progress.title}
         </Text>
         <Card style={styles.empty}>
           <Text variant="heading" align="center">
-            Could not load your progress
+            {t.progress.loadFailed}
           </Text>
           <Text variant="subtitle" color="textSecondary" align="center" style={styles.emptyNote}>
             {error}
           </Text>
-          <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.emptyAction} />
+          <Button label={t.common.tryAgain} variant="secondary" onPress={() => void reload()} style={styles.emptyAction} />
         </Card>
       </Screen>
     );
@@ -56,7 +58,7 @@ export default function ProgressScreen() {
     return (
       <Screen scroll>
         <Text variant="title" align="center" style={styles.pageTitle}>
-          Progress
+          {t.progress.title}
         </Text>
         <Loader />
       </Screen>
@@ -67,16 +69,16 @@ export default function ProgressScreen() {
     return (
       <Screen scroll>
         <Text variant="title" align="center" style={styles.pageTitle}>
-          Progress
+          {t.progress.title}
         </Text>
         <Card style={styles.empty}>
           <Text variant="heading" align="center">
-            Nothing logged yet
+            {t.progress.emptyTitle}
           </Text>
           <Text variant="subtitle" color="textSecondary" align="center" style={styles.emptyNote}>
-            Your pain trend is built from daily check-ins. Log today and the graph starts here.
+            {t.progress.emptyNote}
           </Text>
-          <Button label="Daily Check In" onPress={() => router.push('/check-in')} style={styles.emptyAction} />
+          <Button label={t.progress.dailyCheckIn} onPress={() => router.push('/check-in')} style={styles.emptyAction} />
         </Card>
       </Screen>
     );
@@ -85,15 +87,15 @@ export default function ProgressScreen() {
   return (
     <Screen scroll>
       <Text variant="title" align="center" style={styles.pageTitle}>
-        Progress
+        {t.progress.title}
       </Text>
 
       <Card>
         <Text variant="label" color="textSecondary" style={styles.kicker}>
-          Pain Trend
+          {t.common.painTrend}
         </Text>
         <Text variant="caption" color="textSecondary" style={styles.subtitle}>
-          Scored 0–10 each day · lower is better
+          {t.progress.scale}
         </Text>
 
         <View style={styles.chart}>
@@ -112,12 +114,12 @@ export default function ProgressScreen() {
                 {formatLongDate(selectedEntry.date)} · {selectedEntry.pain_score}/10
               </Text>
               <Text variant="caption" color="textSecondary" style={styles.readoutNote}>
-                {selectedEntry.pain_location ?? 'No location noted.'}
+                {selectedEntry.pain_location ?? t.common.noLocation}
               </Text>
             </>
           ) : (
             <Text variant="caption" color="textMuted">
-              Tap any point to see that day.
+              {t.progress.tapPoint}
             </Text>
           )}
         </View>
@@ -126,43 +128,43 @@ export default function ProgressScreen() {
       <Card style={styles.statsCard}>
         <SessionStats
           stats={[
-            { value: latest?.pain_score != null ? `${latest.pain_score}` : '—', label: 'Latest' },
-            { value: weekAvg !== null ? weekAvg.toFixed(1) : '—', label: '7-day avg' },
-            { value: `${summary?.total_check_ins ?? checkIns.length}`, label: 'Check-ins' },
+            { value: latest?.pain_score != null ? `${latest.pain_score}` : '—', label: t.progress.latest },
+            { value: weekAvg !== null ? weekAvg.toFixed(1) : '—', label: t.common.weekAvg },
+            { value: `${summary?.total_check_ins ?? checkIns.length}`, label: t.common.checkIns },
           ]}
         />
         <SessionStats
           style={styles.statsRow}
           stats={[
-            { value: `${summary?.current_streak ?? 0}`, label: 'Day streak' },
-            { value: `${summary?.total_sessions ?? 0}`, label: 'Sessions' },
+            { value: `${summary?.current_streak ?? 0}`, label: t.common.dayStreak },
+            { value: `${summary?.total_sessions ?? 0}`, label: t.progress.sessions },
             {
               value: summary?.adherence != null ? `${Math.round(summary.adherence * 100)}%` : '—',
-              label: 'On plan · 4 wks',
+              label: t.common.onPlan4Weeks,
             },
           ]}
         />
         {delta !== null ? (
           <Text variant="caption" color="textSecondary" align="center" style={styles.delta}>
             {delta < 0
-              ? `Down ${Math.abs(delta).toFixed(1)} points on the week before.`
+              ? t.progress.down(Math.abs(delta).toFixed(1))
               : delta > 0
-                ? `Up ${delta.toFixed(1)} points on the week before.`
-                : 'Level with the week before.'}
+                ? t.progress.up(delta.toFixed(1))
+                : t.common.levelWithLastWeek}
           </Text>
         ) : null}
       </Card>
 
       {!hasCheckedInToday ? (
         <Button
-          label="Check In For Today"
+          label={t.progress.checkInToday}
           onPress={() => router.push('/check-in')}
           style={styles.action}
         />
       ) : null}
 
       <Text variant="heading" style={styles.sectionTitle}>
-        Recent Check-Ins
+        {t.common.recentCheckIns}
       </Text>
 
       <Card style={styles.list}>
@@ -177,12 +179,12 @@ export default function ProgressScreen() {
             <View style={styles.rowDate}>
               <Text variant="bodyStrong">{formatShortDate(entry.date)}</Text>
               <Text variant="caption" color="textMuted">
-                {entry.pain_score !== null ? describePain(entry.pain_score).split(' —')[0] : '—'}
+                {entry.pain_score !== null ? describePain(entry.pain_score).split(t.pain.detailSeparator)[0] : '—'}
               </Text>
             </View>
 
             <Text variant="caption" color="textSecondary" style={styles.rowNote} numberOfLines={2}>
-              {entry.pain_location ?? 'No location noted.'}
+              {entry.pain_location ?? t.common.noLocation}
             </Text>
 
             <View

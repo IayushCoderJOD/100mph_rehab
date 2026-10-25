@@ -6,18 +6,7 @@ import { useAuth } from '@/auth/AuthProvider';
 import { PageHeader } from '@/components/common';
 import { TextField } from '@/components/form';
 import { Button, Card, Screen, Text } from '@/components/ui';
-
-const MEMBER_LOSES = [
-  'Your weekly plan and the extra exercises from your physio',
-  'Every session you have logged',
-  'Your check-ins, pain scores and notes',
-  'Your progress, and your name, email and phone',
-];
-
-const ADMIN_LOSES = [
-  'Your admin account, name, email and phone',
-  'Your sign-in on every device',
-];
+import { useI18n } from '@/i18n';
 
 /**
  * Deleting your own account, for members and staff alike. The app stores
@@ -30,6 +19,7 @@ const ADMIN_LOSES = [
 export default function DeleteAccountScreen() {
   const router = useRouter();
   const { user, deleteAccount } = useAuth();
+  const { t } = useI18n();
   const isAdmin = user?.role === 'admin';
 
   const [password, setPassword] = useState('');
@@ -47,7 +37,7 @@ export default function DeleteAccountScreen() {
       // The shared copy for this code talks about a "current" password, from the change-password form.
       setError(
         err instanceof ApiError && err.code === 'current_password_incorrect'
-          ? 'That password is not right.'
+          ? t.deleteAccount.wrongPassword
           : messageFor(err)
       );
       setDeleting(false);
@@ -56,12 +46,12 @@ export default function DeleteAccountScreen() {
 
   return (
     <Screen scroll keyboardAvoiding>
-      <PageHeader title="Delete Account" subtitle="This is permanent and cannot be undone." onBack={() => router.back()} />
+      <PageHeader title={t.deleteAccount.title} subtitle={t.deleteAccount.subtitle} onBack={() => router.back()} />
 
       <Card style={styles.card}>
-        <Text variant="bodyStrong">What is deleted</Text>
+        <Text variant="bodyStrong">{t.deleteAccount.whatIsDeleted}</Text>
         <View style={styles.list}>
-          {(isAdmin ? ADMIN_LOSES : MEMBER_LOSES).map((line) => (
+          {(isAdmin ? t.deleteAccount.adminLoses : t.deleteAccount.memberLoses).map((line) => (
             <Text key={line} variant="caption" color="textSecondary">
               •  {line}
             </Text>
@@ -69,18 +59,18 @@ export default function DeleteAccountScreen() {
         </View>
         {isAdmin ? (
           <Text variant="caption" color="textSecondary" style={styles.note}>
-            Clients, their plans and the exercise library stay with the practice.
+            {t.deleteAccount.adminNote}
           </Text>
         ) : (
           <Text variant="caption" color="textSecondary" style={styles.note}>
-            Your physio will no longer see you in their client list. To train again later, they can open a new account for you.
+            {t.deleteAccount.memberNote}
           </Text>
         )}
       </Card>
 
       <View style={styles.form}>
         <TextField
-          label="YOUR PASSWORD"
+          label={t.deleteAccount.password}
           value={password}
           onChangeText={setPassword}
           secure
@@ -95,14 +85,14 @@ export default function DeleteAccountScreen() {
       ) : null}
 
       <Button
-        label="Delete My Account"
+        label={t.deleteAccount.confirm}
         variant="danger"
         disabled={!password}
         loading={deleting}
         onPress={() => void remove()}
         style={styles.delete}
       />
-      <Button label="Keep My Account" variant="ghost" disabled={deleting} onPress={() => router.back()} style={styles.keep} />
+      <Button label={t.deleteAccount.keep} variant="ghost" disabled={deleting} onPress={() => router.back()} style={styles.keep} />
     </Screen>
   );
 }

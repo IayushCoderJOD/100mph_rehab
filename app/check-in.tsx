@@ -7,11 +7,13 @@ import { TextField } from '@/components/form';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { useCheckIns } from '@/checkin/CheckInProvider';
 import { formatLongDate } from '@/data';
+import { useI18n } from '@/i18n';
 import { useDismiss } from '@/navigation/useDismiss';
 
 export default function CheckInScreen() {
   const dismiss = useDismiss();
   const { todayCheckIn, todayIso, saveCheckIn, recent } = useCheckIns();
+  const { t } = useI18n();
 
   const [score, setScore] = useState<number | null>(todayCheckIn?.pain_score ?? null);
   const [location, setLocation] = useState(todayCheckIn?.pain_location ?? '');
@@ -41,15 +43,15 @@ export default function CheckInScreen() {
           <Text variant="label" color="textSecondary" style={styles.kicker}>
             {formatLongDate(todayIso)}
           </Text>
-          <Text variant="title">Daily Check In</Text>
+          <Text variant="title">{t.checkIn.title}</Text>
         </View>
         <IconButton name="close" variant="plain" onPress={dismiss} />
       </View>
 
       <Card style={styles.block}>
-        <Text variant="heading">How is your pain today?</Text>
+        <Text variant="heading">{t.checkIn.painQuestion}</Text>
         <Text variant="caption" color="textSecondary" style={styles.blockNote}>
-          Rate it from 0 to 10, however it felt on average across the day.
+          {t.checkIn.painNote}
         </Text>
 
         <View style={styles.score}>
@@ -57,7 +59,7 @@ export default function CheckInScreen() {
             {score === null ? '—' : score}
           </Text>
           <Text variant="subtitle" color={score === null ? 'textMuted' : 'textSecondary'} align="center">
-            {score === null ? 'Pick a number below' : describePain(score)}
+            {score === null ? t.checkIn.pick : describePain(score)}
           </Text>
         </View>
 
@@ -65,15 +67,15 @@ export default function CheckInScreen() {
       </Card>
 
       <Card style={styles.block}>
-        <Text variant="heading">Where did you feel it?</Text>
+        <Text variant="heading">{t.checkIn.whereQuestion}</Text>
         <Text variant="caption" color="textSecondary" style={styles.blockNote}>
-          Be as specific as you can — the exact spot matters more than the words.
+          {t.checkIn.whereNote}
         </Text>
         <View style={styles.field}>
           <TextField
             value={location}
             onChangeText={setLocation}
-            placeholder="e.g. lower back, left side, worse when sitting"
+            placeholder={t.checkIn.wherePlaceholder}
             autoCapitalize="sentences"
             multiline
             maxLength={280}
@@ -88,7 +90,7 @@ export default function CheckInScreen() {
       ) : null}
 
       <Button
-        label={isUpdate ? 'Update Check In' : 'Save Check In'}
+        label={isUpdate ? t.checkIn.update : t.checkIn.save}
         disabled={score === null}
         loading={saving}
         onPress={() => void save()}
@@ -97,9 +99,9 @@ export default function CheckInScreen() {
 
       {trend.length > 1 ? (
         <Card style={styles.trend}>
-          <Text variant="heading">Your pain so far</Text>
+          <Text variant="heading">{t.checkIn.soFar}</Text>
           <Text variant="caption" color="textSecondary" style={styles.blockNote}>
-            Last {trend.length} check-ins · lower is better
+            {t.common.lastCheckIns(trend.length)}
           </Text>
           <View style={styles.chart}>
             <PainTrendChart points={trend} height={150} />

@@ -1,26 +1,24 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Linking, StyleSheet, View } from 'react-native';
-import { ROLE_LABEL, useAccess } from '@/access';
+import { useAccess } from '@/access';
 import { useAuth } from '@/auth/AuthProvider';
+import { LanguageSelect } from '@/components/common';
 import { SettingsRow, SettingsSection } from '@/components/settings';
 import { Button, Card, HeartBadge, Screen, SegmentedControl, Text } from '@/components/ui';
 import { socialLinks, supportEmail } from '@/config/brand';
 import { features } from '@/config/features';
 import { formatLongDate } from '@/data';
+import { useI18n } from '@/i18n';
 import { useMembership } from '@/membership/MembershipProvider';
 import { usePlan } from '@/plan/PlanProvider';
 import { ThemeMode, useTheme } from '@/theme';
 
 const shownSocialLinks = socialLinks.filter((link) => features.socialLinks.includes(link.id));
 
-const THEME_SEGMENTS: { label: string; value: ThemeMode }[] = [
-  { label: 'Dark', value: 'dark' },
-  { label: 'Light', value: 'light' },
-];
-
 export default function SettingsScreen() {
   const { theme, mode, setMode } = useTheme();
+  const { t, localize } = useI18n();
   const { signOut, user } = useAuth();
   const { can, isAdmin, role } = useAccess();
   const { plan: week, hasPlan } = usePlan();
@@ -32,6 +30,11 @@ export default function SettingsScreen() {
     router.replace('/(auth)/login');
   };
 
+  const themeSegments: { label: string; value: ThemeMode }[] = [
+    { label: t.settings.dark, value: 'dark' },
+    { label: t.settings.light, value: 'light' },
+  ];
+
   const openUrl = (url: string) => {
     Linking.openURL(url).catch(() => {
       // Nothing installed to handle it — better to do nothing than to crash.
@@ -41,16 +44,16 @@ export default function SettingsScreen() {
   return (
     <Screen scroll>
       <Text variant="title" align="center" style={styles.pageTitle}>
-        Your Settings
+        {t.settings.title}
       </Text>
 
       <Card style={styles.userCard}>
         <View style={styles.userRow}>
           <HeartBadge size={56} glow />
           <View style={styles.userText}>
-            <Text variant="heading">{user?.full_name ?? 'Your account'}</Text>
+            <Text variant="heading">{user?.full_name ?? t.settings.yourAccount}</Text>
             <Text variant="caption" color="textSecondary">
-              Member since {user ? formatLongDate(user.member_since) : '—'}
+              {t.common.memberSince(user ? formatLongDate(user.member_since) : '—')}
             </Text>
           </View>
         </View>
@@ -58,28 +61,28 @@ export default function SettingsScreen() {
 
       {isAdmin ? (
         <SettingsSection
-          label="Practice"
-          footnote={`Signed in as ${role ? ROLE_LABEL[role] : 'admin'}.`}
+          label={t.settings.practice}
+          footnote={t.settings.signedInAs(role ? t.roles[role] : t.settings.adminFallback)}
         >
           <SettingsRow
             icon="people-outline"
-            title="Clients"
-            subtitle="Progress, check-ins and prescriptions"
+            title={t.settings.clients}
+            subtitle={t.settings.clientsSub}
             onPress={() => router.push('/(tabs)/clients')}
           />
           {can('clients.create') ? (
             <SettingsRow
               icon="person-add-outline"
-              title="Create Client Account"
-              subtitle="Provision access for a new member"
+              title={t.settings.createClient}
+              subtitle={t.settings.createClientSub}
               onPress={() => router.push('/admin/create-user')}
             />
           ) : null}
           {can('clients.assign_exercise') ? (
             <SettingsRow
               icon="videocam-outline"
-              title="Exercise Library"
-              subtitle="Add exercises and upload their videos"
+              title={t.settings.library}
+              subtitle={t.settings.librarySub}
               onPress={() => router.push('/admin/exercises')}
             />
           ) : null}
@@ -87,51 +90,60 @@ export default function SettingsScreen() {
       ) : null}
 
       {can('program.train') ? (
-        <SettingsSection label="Your Membership">
+        <SettingsSection label={t.settings.membership}>
           <SettingsRow
             icon="person-outline"
-            title="My Account"
-            subtitle="Email, phone, age, height and weight"
+            title={t.settings.myAccount}
+            subtitle={t.settings.myAccountSub}
             onPress={() => router.push('/account')}
           />
           {features.membership ? (
             <SettingsRow
               icon="card-outline"
-              title="Manage Membership"
-              subtitle={isActive ? 'Change duration or cancel' : 'Cancelled — resume any time'}
-              value={plan.name}
+              title={t.settings.manageMembership}
+              subtitle={isActive ? t.settings.membershipActive : t.settings.membershipCancelled}
+              value={localize.plan(plan).name}
               onPress={() => router.push('/membership')}
             />
           ) : null}
           <SettingsRow
             icon="calendar-outline"
-            title="Your Week"
+            title={t.settings.yourWeek}
             subtitle={
               hasPlan
-                ? `Written by ${week?.updated_by_name ?? 'your physio'}`
-                : 'Your physio has not written it yet'
+                ? t.settings.writtenBy(week?.updated_by_name ?? t.settings.yourPhysio)
+                : t.settings.notWritten
             }
             onPress={() => router.push('/(tabs)')}
           />
         </SettingsSection>
       ) : null}
 
-      <SettingsSection label="Appearance">
+      <SettingsSection label={t.settings.appearance}>
         <View style={styles.appearance}>
-          <Text variant="bodyStrong">Theme</Text>
+          <Text variant="bodyStrong">{t.settings.theme}</Text>
           <Text variant="caption" color="textSecondary" style={styles.appearanceNote}>
-            Choose how the app looks.
+            {t.settings.themeNote}
           </Text>
           <View style={{ marginTop: theme.spacing(3) }}>
-            <SegmentedControl segments={THEME_SEGMENTS} value={mode} onChange={setMode} />
+            <SegmentedControl segments={themeSegments} value={mode} onChange={setMode} />
           </View>
         </View>
       </SettingsSection>
 
-      <SettingsSection label="Support" footnote={`We answer every mail at ${supportEmail}.`}>
+      <SettingsSection label={t.language.label}>
+        <View style={styles.language}>
+          <Text variant="caption" color="textSecondary" style={styles.languageNote}>
+            {t.language.note}
+          </Text>
+          <LanguageSelect />
+        </View>
+      </SettingsSection>
+
+      <SettingsSection label={t.settings.support} footnote={t.settings.supportFootnote(supportEmail)}>
         <SettingsRow
           icon="mail-outline"
-          title="Help & Support"
+          title={t.settings.help}
           subtitle={supportEmail}
           external
           onPress={() =>
@@ -141,7 +153,7 @@ export default function SettingsScreen() {
       </SettingsSection>
 
       {shownSocialLinks.length > 0 ? (
-        <SettingsSection label="Follow 100mph">
+        <SettingsSection label={t.settings.follow}>
           {shownSocialLinks.map((link) => (
             <SettingsRow
               key={link.id}
@@ -156,14 +168,14 @@ export default function SettingsScreen() {
       ) : null}
 
       <View style={styles.logout}>
-        <Button label="Logout" variant="secondary" onPress={handleLogout} />
+        <Button label={t.settings.logout} variant="secondary" onPress={handleLogout} />
       </View>
 
       <SettingsSection>
         <SettingsRow
           icon="trash-outline"
-          title="Delete Account"
-          subtitle="Permanently remove your account and data"
+          title={t.settings.deleteAccount}
+          subtitle={t.settings.deleteAccountSub}
           tone="danger"
           onPress={() => router.push('/delete-account')}
         />
@@ -179,5 +191,7 @@ const styles = StyleSheet.create({
   userText: { flex: 1, gap: 4 },
   appearance: { paddingVertical: 12 },
   appearanceNote: { marginTop: 2 },
+  language: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 14 },
+  languageNote: { flex: 1 },
   logout: { marginTop: 32 },
 });

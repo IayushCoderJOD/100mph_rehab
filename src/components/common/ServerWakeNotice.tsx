@@ -1,6 +1,7 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useServerWaking } from '@/api';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 
@@ -15,6 +16,7 @@ import { Text } from '../ui/Text';
 export function ServerWakeNotice() {
   const waking = useServerWaking();
   const { theme } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
 
   if (!waking) return null;
@@ -35,7 +37,7 @@ export function ServerWakeNotice() {
       >
         <ActivityIndicator size="small" color={theme.colors.accent} />
         <Text variant="caption" color="textSecondary" style={styles.text}>
-          Starting up — the first load after a break can take up to a minute.
+          {t.wake.notice}
         </Text>
       </View>
     </View>

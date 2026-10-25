@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ClientSummary } from '@/api';
 import { ISODate, parseISODate, todayISO } from '@/data';
 import { useHover } from '@/hooks/useHover';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 import { StatusBadge } from './StatusBadge';
@@ -27,22 +28,23 @@ export function daysSince(iso: ISODate | null, today: ISODate = todayISO()): num
 export function ClientRow({ summary, onPress }: ClientRowProps) {
   const { theme } = useTheme();
   const { hovered, hoverProps } = useHover();
+  const { t } = useI18n();
   const { user: client } = summary;
 
   const quietDays = daysSince(summary.last_active_date);
   const silence =
     quietDays === null
-      ? 'No activity yet'
+      ? t.clientRow.noActivity
       : summary.checked_in_today
-        ? 'Checked in today'
+        ? t.clientRow.checkedInToday
         : quietDays === 0
-          ? 'Active today'
-          : `${quietDays}d since last activity`;
+          ? t.clientRow.activeToday
+          : t.clientRow.daysSince(quietDays);
 
   const line = summary.has_plan
-    ? `${summary.sessions_this_week} session${summary.sessions_this_week === 1 ? '' : 's'} this week` +
-      (summary.adherence != null ? ` · ${Math.round(summary.adherence * 100)}% on plan` : '')
-    : 'No week written yet';
+    ? t.clientRow.sessionsThisWeek(summary.sessions_this_week) +
+      (summary.adherence != null ? t.clientRow.onPlan(Math.round(summary.adherence * 100)) : '')
+    : t.clientRow.noWeek;
 
   return (
     <Pressable
@@ -74,7 +76,7 @@ export function ClientRow({ summary, onPress }: ClientRowProps) {
       >
         <Text variant="bodyStrong">{summary.latest_pain_score ?? '—'}</Text>
         <Text variant="label" color="textMuted">
-          PAIN
+          {t.clientRow.pain}
         </Text>
       </View>
 

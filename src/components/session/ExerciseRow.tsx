@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 
@@ -27,6 +28,7 @@ export function ExerciseRow({
   onGuide,
 }: ExerciseRowProps) {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const live = !!onToggle;
 
   return (
@@ -77,7 +79,7 @@ export function ExerciseRow({
           onPress={onGuide}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={`${name} guide`}
+          accessibilityLabel={t.exerciseRow.guideA11y(name)}
           style={({ pressed }) => [
             styles.guide,
             {
@@ -88,7 +90,7 @@ export function ExerciseRow({
           ]}
         >
           <Text variant="label" color="textSecondary">
-            Guide
+            {t.exerciseRow.guide}
           </Text>
           <Ionicons name="chevron-forward" size={13} color={theme.colors.textMuted} />
         </Pressable>

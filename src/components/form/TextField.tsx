@@ -8,8 +8,8 @@ import {
   TextInputProps,
   View,
 } from 'react-native';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
-import { fontFamily } from '@/theme/typography';
 import { Text } from '../ui/Text';
 
 type TextFieldProps = {
@@ -43,6 +43,7 @@ export function TextField({
   maxLength,
 }: TextFieldProps) {
   const { theme } = useTheme();
+  const { fonts } = useI18n();
   const [hidden, setHidden] = useState(secure);
   const [focused, setFocused] = useState(false);
 
@@ -72,7 +73,7 @@ export function TextField({
         <TextInput
           style={[
             styles.input,
-            { color: theme.colors.textPrimary },
+            { color: theme.colors.textPrimary, fontFamily: fonts.medium },
             multiline && styles.multiline,
           ]}
           value={value}
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 18,
   },
-  input: { flex: 1, height: '100%', fontFamily: fontFamily.medium, fontSize: 16 },
+  input: { flex: 1, height: '100%', fontSize: 16 },
   multiline: { height: 'auto', minHeight: 80, lineHeight: 22 },
   eye: { paddingLeft: 10 },
 });

@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Exercise } from '@/data';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { Text } from '../ui/Text';
 import { VideoPoster } from './VideoPoster';
@@ -56,8 +57,10 @@ type ExerciseGuideProps = {
  * asks for and why. Shared by the member's guide screen and the coach's
  * preview in the exercise picker, so both see exactly the same thing.
  */
-export function ExerciseGuide({ exercise, method }: ExerciseGuideProps) {
+export function ExerciseGuide({ exercise: stored, method }: ExerciseGuideProps) {
   const { theme } = useTheme();
+  const { t, localize } = useI18n();
+  const exercise = localize.exercise(stored);
 
   // Movements added from the app may leave any of these blank; a heading with
   // nothing under it reads as something failed to load, so it is left out.
@@ -65,8 +68,8 @@ export function ExerciseGuide({ exercise, method }: ExerciseGuideProps) {
   const instructions = exercise.instructions?.trim() || null;
   const purpose = exercise.purpose?.trim() || null;
   const specs = [
-    prerequisites ? { label: 'Prerequisites', value: prerequisites } : null,
-    method !== undefined ? { label: 'Method', value: method } : null,
+    prerequisites ? { label: t.exerciseGuide.prerequisites, value: prerequisites } : null,
+    method !== undefined ? { label: t.exerciseGuide.method, value: localize.prescription(method) } : null,
   ].filter((row): row is { label: string; value: string } => row !== null);
 
   return (
@@ -93,7 +96,7 @@ export function ExerciseGuide({ exercise, method }: ExerciseGuideProps) {
       ) : null}
 
       {instructions ? (
-        <Section label="INSTRUCTIONS">
+        <Section label={t.exerciseGuide.instructions}>
           <Text variant="body" color="textSecondary" style={styles.prose}>
             {instructions}
           </Text>
@@ -101,7 +104,7 @@ export function ExerciseGuide({ exercise, method }: ExerciseGuideProps) {
       ) : null}
 
       {purpose ? (
-        <Section label="PURPOSE">
+        <Section label={t.exerciseGuide.purpose}>
           <Text variant="body" color="textSecondary" style={styles.prose}>
             {purpose}
           </Text>

@@ -1,4 +1,5 @@
 import { Text as RNText, TextProps as RNTextProps, TextStyle } from 'react-native';
+import { devanagariTextStyle, useI18n } from '@/i18n';
 import { ThemeColors, useTheme } from '@/theme';
 import { TextVariant, typography } from '@/theme/typography';
 
@@ -19,13 +20,17 @@ export function Text({
   ...rest
 }: TextProps) {
   const { theme } = useTheme();
+  const { devanagari, devanagariFontReady } = useI18n();
   const token = theme.colors[color as keyof ThemeColors];
   const resolved = typeof token === 'string' ? token : color;
+
+  const styles = [typography[variant], { color: resolved, textAlign: align }, style];
 
   return (
     <RNText
       {...rest}
-      style={[typography[variant], { color: resolved, textAlign: align }, style]}
+      // English renders exactly as it always has; only Hindi is re-set.
+      style={devanagari ? devanagariTextStyle(styles, devanagariFontReady) : styles}
     />
   );
 }

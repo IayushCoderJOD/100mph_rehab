@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { PageHeader } from '@/components/common';
 import { Button, Card, Screen, Text } from '@/components/ui';
 import { formatLongDate } from '@/data';
+import { useI18n } from '@/i18n';
 import { useMembership } from '@/membership/MembershipProvider';
 import { useDismiss } from '@/navigation/useDismiss';
 import { useTheme } from '@/theme';
@@ -11,27 +12,29 @@ import { useTheme } from '@/theme';
 export default function MembershipScreen() {
   const dismiss = useDismiss('/(tabs)/settings');
   const { theme } = useTheme();
-  const { plan, plans, isActive, renewsOn, changePlan, cancelMembership, resumeMembership } =
+  const { plan: storedPlan, plans, isActive, renewsOn, changePlan, cancelMembership, resumeMembership } =
     useMembership();
+  const { t, localize } = useI18n();
+  const plan = localize.plan(storedPlan);
 
   const [selectedId, setSelectedId] = useState(plan.id);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
-  const selected = plans.find((p) => p.id === selectedId) ?? plan;
+  const selected = localize.plan(plans.find((p) => p.id === selectedId) ?? storedPlan);
   const isChanged = selectedId !== plan.id;
 
   return (
     <Screen scroll>
       <PageHeader
-        title="Manage Membership"
-        subtitle="Change how long you are signed up for, or cancel."
+        title={t.membership.title}
+        subtitle={t.membership.subtitle}
         onBack={dismiss}
       />
 
       <Card variant="alt" style={styles.current}>
         <View style={styles.currentHead}>
           <Text variant="label" color="textSecondary" style={styles.kicker}>
-            Current Plan
+            {t.membership.currentPlan}
           </Text>
           <View
             style={[
@@ -44,7 +47,7 @@ export default function MembershipScreen() {
             ]}
           >
             <Text variant="caption" color={isActive ? 'accentText' : 'danger'}>
-              {isActive ? 'Active' : 'Cancelled'}
+              {isActive ? t.membership.active : t.membership.cancelled}
             </Text>
           </View>
         </View>
@@ -57,20 +60,20 @@ export default function MembershipScreen() {
         </Text>
         <Text variant="caption" color={isActive ? 'textSecondary' : 'danger'} style={styles.renewal}>
           {isActive
-            ? `Renews on ${formatLongDate(renewsOn)}`
-            : `Access ends on ${formatLongDate(renewsOn)}`}
+            ? t.membership.renewsOn(formatLongDate(renewsOn))
+            : t.membership.endsOn(formatLongDate(renewsOn))}
         </Text>
       </Card>
 
       <Text variant="heading" style={styles.sectionTitle}>
-        Change Duration
+        {t.membership.changeDuration}
       </Text>
       <Text variant="caption" color="textSecondary" style={styles.sectionNote}>
-        Switching starts a fresh term from today.
+        {t.membership.changeNote}
       </Text>
 
       <View style={styles.options}>
-        {plans.map((option) => {
+        {plans.map(localize.plan).map((option) => {
           const active = option.id === selectedId;
           const current = option.id === plan.id;
 
@@ -109,7 +112,7 @@ export default function MembershipScreen() {
                   <Text variant="bodyStrong">{option.name}</Text>
                   {current ? (
                     <Text variant="caption" color="textMuted">
-                      · current
+                      {t.membership.current}
                     </Text>
                   ) : null}
                 </View>
@@ -127,7 +130,7 @@ export default function MembershipScreen() {
       </View>
 
       <Button
-        label={isChanged ? `Switch to ${selected.name}` : 'Switch Plan'}
+        label={isChanged ? t.membership.switchTo(selected.name) : t.membership.switchPlan}
         disabled={!isChanged}
         onPress={() => changePlan(selectedId)}
         style={styles.switchButton}
@@ -140,23 +143,22 @@ export default function MembershipScreen() {
         ]}
       >
         <Text variant="heading" color="danger">
-          {isActive ? 'Cancel Membership' : 'Membership Cancelled'}
+          {isActive ? t.membership.cancelTitle : t.membership.cancelledTitle}
         </Text>
 
         {isActive ? (
           <>
             <Text variant="caption" color="textSecondary" style={styles.dangerNote}>
-              You keep full access until {formatLongDate(renewsOn)}. Your schedule and progress stay
-              saved if you come back.
+              {t.membership.keepAccess(formatLongDate(renewsOn))}
             </Text>
 
             {confirmingCancel ? (
               <View style={styles.confirm}>
                 <Text variant="bodyStrong" color="danger">
-                  Cancel your {plan.name.toLowerCase()} membership?
+                  {t.membership.confirmCancel(plan.name)}
                 </Text>
                 <Button
-                  label="Yes, Cancel Membership"
+                  label={t.membership.yesCancel}
                   variant="secondary"
                   onPress={() => {
                     cancelMembership();
@@ -165,14 +167,14 @@ export default function MembershipScreen() {
                   style={styles.confirmAction}
                 />
                 <Button
-                  label="Keep My Membership"
+                  label={t.membership.keepMembership}
                   variant="ghost"
                   onPress={() => setConfirmingCancel(false)}
                 />
               </View>
             ) : (
               <Button
-                label="Cancel Membership"
+                label={t.membership.cancel}
                 variant="ghost"
                 onPress={() => setConfirmingCancel(true)}
                 style={styles.dangerAction}
@@ -182,10 +184,9 @@ export default function MembershipScreen() {
         ) : (
           <>
             <Text variant="caption" color="textSecondary" style={styles.dangerNote}>
-              Your membership will not renew. Resume any time before{' '}
-              {formatLongDate(renewsOn)} and nothing is lost.
+              {t.membership.willNotRenew(formatLongDate(renewsOn))}
             </Text>
-            <Button label="Resume Membership" onPress={resumeMembership} style={styles.dangerAction} />
+            <Button label={t.membership.resume} onPress={resumeMembership} style={styles.dangerAction} />
           </>
         )}
       </View>

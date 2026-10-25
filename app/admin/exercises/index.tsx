@@ -9,6 +9,7 @@ import { Button, Card, Loader, Screen, SegmentedControl, Text } from '@/componen
 import { CATEGORY_LABEL, Exercise } from '@/data';
 import { useExerciseLibrary } from '@/exercises';
 import { useHover } from '@/hooks/useHover';
+import { useI18n } from '@/i18n';
 import { useDismiss } from '@/navigation/useDismiss';
 import { useTheme } from '@/theme';
 
@@ -21,36 +22,33 @@ function statusOf(exercise: Exercise): Status {
   return exercise.video_url ? 'live' : 'needs_video';
 }
 
-const STATUS_LABEL: Record<Status, string> = {
-  live: 'Live',
-  needs_video: 'Needs video',
-  hidden: 'Hidden',
-};
-
 function ExerciseStatus({ status }: { status: Status }) {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const color = status === 'live' ? theme.colors.accentText : theme.colors.textSecondary;
   const borderColor = status === 'live' ? theme.colors.accentBorder : theme.colors.border;
   return (
     <View style={[styles.badge, { borderColor, borderRadius: theme.radius.pill }]}>
       <Text variant="label" color={color}>
-        {STATUS_LABEL[status]}
+        {t.library.status[status]}
       </Text>
     </View>
   );
 }
 
-function ExerciseRow({ exercise, onPress }: { exercise: Exercise; onPress: () => void }) {
+function ExerciseRow({ exercise: stored, onPress }: { exercise: Exercise; onPress: () => void }) {
   const { theme } = useTheme();
+  const { t, localize } = useI18n();
   const { hovered, hoverProps } = useHover();
-  const status = statusOf(exercise);
+  const status = statusOf(stored);
+  const exercise = localize.exercise(stored);
 
   return (
     <Pressable
       {...hoverProps}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${exercise.name}, ${STATUS_LABEL[status]}`}
+      accessibilityLabel={t.library.rowA11y(exercise.name, t.library.status[status])}
       style={({ pressed }) => [
         styles.row,
         {
@@ -71,7 +69,7 @@ function ExerciseRow({ exercise, onPress }: { exercise: Exercise; onPress: () =>
           {exercise.name}
         </Text>
         <Text variant="caption" color="textSecondary" numberOfLines={1}>
-          {CATEGORY_LABEL[exercise.category] ?? exercise.category}
+          {t.categories[exercise.category] ?? exercise.category}
           {exercise.focus ? ` · ${exercise.focus}` : ''}
         </Text>
       </View>
@@ -90,6 +88,7 @@ function ExerciseLibraryScreen() {
   const router = useRouter();
   const dismiss = useDismiss('/(tabs)/settings');
   const { all, loading, error, reload, usingBundledCatalogue } = useExerciseLibrary();
+  const { t, localize } = useI18n();
 
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -106,49 +105,54 @@ function ExerciseLibraryScreen() {
     const term = query.trim().toLowerCase();
     return all
       .filter((exercise) => filter === 'all' || statusOf(exercise) === filter)
-      .filter(
-        (exercise) =>
-          !term ||
-          exercise.name.toLowerCase().includes(term) ||
-          (exercise.focus ?? '').toLowerCase().includes(term) ||
-          (CATEGORY_LABEL[exercise.category] ?? '').toLowerCase().includes(term)
-      );
-  }, [all, filter, query]);
+      .filter((exercise) => {
+        if (!term) return true;
+        // Either language finds it: the rows read in the chosen one, the names a coach knows may be English.
+        const shown = localize.exercise(exercise);
+        return [
+          exercise.name,
+          exercise.focus,
+          shown.name,
+          shown.focus,
+          CATEGORY_LABEL[exercise.category],
+          t.categories[exercise.category],
+        ].some((text) => (text ?? '').toLowerCase().includes(term));
+      });
+  }, [all, filter, query, t, localize]);
 
   return (
     <Screen scroll>
       <PageHeader
-        title="Exercise Library"
-        subtitle={`${counts.live} live · ${counts.needs_video} need a video · ${counts.hidden} hidden`}
+        title={t.library.title}
+        subtitle={t.library.subtitle(counts.live, counts.needs_video, counts.hidden)}
         onBack={dismiss}
       />
 
       {usingBundledCatalogue ? (
         <Card variant="alt" style={styles.notice}>
           <Text variant="caption" color="textSecondary">
-            This server does not have the exercise library yet, so these are the exercises built into the
-            app. Adding and editing will work once the API is updated.
+            {t.library.bundled}
           </Text>
         </Card>
       ) : (
-        <Button label="New Exercise" onPress={() => router.push('/admin/exercises/new')} style={styles.create} />
+        <Button label={t.library.newExercise} onPress={() => router.push('/admin/exercises/new')} style={styles.create} />
       )}
 
       <View style={styles.search}>
         <TextField
           value={query}
           onChangeText={setQuery}
-          placeholder="Search by name, muscle group or category"
+          placeholder={t.library.search}
           autoCapitalize="none"
         />
       </View>
 
       <SegmentedControl<Filter>
         segments={[
-          { label: 'All', value: 'all' },
-          { label: 'Live', value: 'live' },
-          { label: 'Needs video', value: 'needs_video' },
-          { label: 'Hidden', value: 'hidden' },
+          { label: t.library.all, value: 'all' },
+          { label: t.library.status.live, value: 'live' },
+          { label: t.library.status.needs_video, value: 'needs_video' },
+          { label: t.library.status.hidden, value: 'hidden' },
         ]}
         value={filter}
         onChange={setFilter}
@@ -158,26 +162,26 @@ function ExerciseLibraryScreen() {
         {error && all.length === 0 ? (
           <Card style={styles.empty}>
             <Text variant="heading" align="center">
-              Could not load the library
+              {t.library.loadFailed}
             </Text>
             <Text variant="caption" color="textSecondary" align="center" style={styles.emptyNote}>
               {error}
             </Text>
-            <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.retry} />
+            <Button label={t.common.tryAgain} variant="secondary" onPress={() => void reload()} style={styles.retry} />
           </Card>
         ) : loading && all.length === 0 ? (
           <Loader />
         ) : shown.length === 0 ? (
           <Card style={styles.empty}>
             <Text variant="heading" align="center">
-              Nothing here
+              {t.library.nothing}
             </Text>
             <Text variant="caption" color="textSecondary" align="center" style={styles.emptyNote}>
               {filter === 'needs_video'
-                ? 'Every exercise has a video.'
+                ? t.library.allHaveVideo
                 : filter === 'hidden'
-                  ? 'No exercises are hidden.'
-                  : 'Try a different search, or add the exercise.'}
+                  ? t.library.noneHidden
+                  : t.library.tryDifferent}
             </Text>
           </Card>
         ) : (

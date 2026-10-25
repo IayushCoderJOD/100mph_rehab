@@ -2,14 +2,17 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useAuth } from '@/auth/AuthProvider';
+import { LanguageSelect } from '@/components/common';
 import { TextField } from '@/components/form';
 import { features } from '@/config/features';
 import { Button, Card, Logo, Screen, Text } from '@/components/ui';
 import { mock } from '@/data';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 
 export default function LoginScreen() {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const router = useRouter();
   const { signInWithPassword, error: authError, notice } = useAuth();
 
@@ -45,20 +48,26 @@ export default function LoginScreen() {
 
   return (
     <Screen keyboardAvoiding scroll>
+      {/* Before anything else on the screen: someone who reads Hindi should
+          not have to get through an English sign-in to find the switch. */}
+      <View style={styles.language}>
+        <LanguageSelect />
+      </View>
+
       <View style={styles.header}>
         <View style={styles.logo}>
           <Logo height={68} />
         </View>
         <View style={{ height: theme.spacing(6) }} />
-        <Text variant="display">Welcome back</Text>
+        <Text variant="display">{t.login.welcome}</Text>
         <Text variant="subtitle" color="textSecondary" style={styles.subtitle}>
-          Sign in with the details your coach set up for you.
+          {t.login.subtitle}
         </Text>
       </View>
 
       <View style={styles.form}>
         <TextField
-          label="EMAIL"
+          label={t.login.email}
           value={email}
           onChangeText={setEmail}
           placeholder="you@example.com"
@@ -68,7 +77,7 @@ export default function LoginScreen() {
           autoFocus
         />
         <TextField
-          label="PASSWORD"
+          label={t.login.password}
           value={password}
           onChangeText={setPassword}
           placeholder="••••••••"
@@ -79,7 +88,7 @@ export default function LoginScreen() {
         {features.forgotPassword ? (
           <Pressable hitSlop={8} style={styles.forgot}>
             <Text variant="bodyStrong" color="accentText">
-              Forgot password?
+              {t.login.forgot}
             </Text>
           </Pressable>
         ) : null}
@@ -97,17 +106,17 @@ export default function LoginScreen() {
       ) : null}
 
       <View style={styles.footer}>
-        <Button label="Log In" onPress={handleSubmit} disabled={!valid} loading={loading} />
+        <Button label={t.login.logIn} onPress={handleSubmit} disabled={!valid} loading={loading} />
         <Text variant="caption" color="textMuted" align="center" style={styles.note}>
-          Access is provisioned by your coach — there is no public sign-up.
-          {features.forgotPassword ? '' : ' Forgotten your password? Your coach can reset it for you.'}
+          {t.login.note}
+          {features.forgotPassword ? '' : t.login.noteReset}
         </Text>
       </View>
 
       {__DEV__ ? (
         <Card variant="alt" style={styles.demo}>
           <Text variant="label" color="textSecondary" style={styles.demoLabel}>
-            DEMO ACCOUNTS · DEV ONLY
+            {t.login.demoTitle}
           </Text>
           {mock.demoLogins.map((demo) => (
             <Pressable
@@ -115,7 +124,7 @@ export default function LoginScreen() {
               onPress={() => useDemo(demo.email, demo.password)}
               style={styles.demoRow}
               accessibilityRole="button"
-              accessibilityLabel={`Fill in the ${demo.role} demo account`}
+              accessibilityLabel={t.login.demoFill(demo.role)}
             >
               <Text variant="caption" color="accentText">
                 {demo.role}
@@ -132,7 +141,8 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { alignItems: 'flex-start', paddingTop: 16 },
+  language: { alignItems: 'flex-end', paddingTop: 8 },
+  header: { alignItems: 'flex-start', paddingTop: 8 },
   logo: { alignSelf: 'center' },
   subtitle: { marginTop: 10, maxWidth: '92%' },
   form: { marginTop: 32, gap: 18 },

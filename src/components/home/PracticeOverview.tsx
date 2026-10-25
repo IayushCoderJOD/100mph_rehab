@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useDirectory } from '@/directory/DirectoryProvider';
+import { useI18n } from '@/i18n';
 import { useTheme } from '@/theme';
 import { daysSince } from '../admin/ClientRow';
 import { Button } from '../ui/Button';
@@ -52,6 +53,7 @@ export function PracticeOverview({
   onOpenClient,
 }: PracticeOverviewProps) {
   const { theme } = useTheme();
+  const { t } = useI18n();
   const { roster, loading, error, reload } = useDirectory();
 
   const stats = useMemo(() => {
@@ -74,17 +76,17 @@ export function PracticeOverview({
     <View style={styles.wrap}>
       <Card variant="alt" style={styles.card}>
         <Text variant="label" color="textSecondary" align="center" style={styles.kicker}>
-          Your Practice · Today
+          {t.practice.kicker}
         </Text>
         {firstLoad ? (
           <Loader />
         ) : (
           <Text variant="title" align="center" style={styles.headline}>
             {error
-              ? 'Could not load the roster'
+              ? t.practice.loadFailed
               : stats.attention.length === 0
-                ? 'All caught up'
-                : `${stats.attention.length} need a nudge`}
+                ? t.practice.caughtUp
+                : t.practice.needNudge(stats.attention.length)}
           </Text>
         )}
         {error ? (
@@ -92,30 +94,30 @@ export function PracticeOverview({
             <Text variant="caption" color="textSecondary" align="center" style={styles.note}>
               {error}
             </Text>
-            <Button label="Try again" variant="secondary" onPress={() => void reload()} style={styles.retry} />
+            <Button label={t.common.tryAgain} variant="secondary" onPress={() => void reload()} style={styles.retry} />
           </>
         ) : null}
 
         {firstLoad ? null : (
           <View style={styles.grid}>
-            <Stat value={`${stats.clients}`} label="Active clients" />
-            <Stat value={`${stats.checkedInToday}`} label="Checked in today" />
-            <Stat value={`${stats.trainedThisWeek}`} label="Trained this week" />
-            <Stat value={`${stats.unplanned.length}`} label="No week yet" accent={stats.unplanned.length > 0} />
+            <Stat value={`${stats.clients}`} label={t.practice.activeClients} />
+            <Stat value={`${stats.checkedInToday}`} label={t.practice.checkedInToday} />
+            <Stat value={`${stats.trainedThisWeek}`} label={t.practice.trainedThisWeek} />
+            <Stat value={`${stats.unplanned.length}`} label={t.practice.noWeekYet} accent={stats.unplanned.length > 0} />
           </View>
         )}
 
-        <Button label="Open Clients" onPress={onOpenRoster} style={styles.primary} />
+        <Button label={t.practice.openClients} onPress={onOpenRoster} style={styles.primary} />
         {canCreateClient ? (
-          <Button label="Create Client Account" variant="secondary" onPress={onCreateClient} style={styles.secondary} />
+          <Button label={t.practice.createClient} variant="secondary" onPress={onCreateClient} style={styles.secondary} />
         ) : null}
       </Card>
 
       {stats.attention.length > 0 ? (
         <Card>
-          <Text variant="heading">Worth a call</Text>
+          <Text variant="heading">{t.practice.worthACall}</Text>
           <Text variant="caption" color="textSecondary" style={styles.note}>
-            Quiet for a week, under 60% on plan, or reporting pain of 7 or more.
+            {t.practice.worthACallNote}
           </Text>
           <View style={styles.list}>
             {stats.attention.slice(0, 5).map((row, index) => {
@@ -133,15 +135,15 @@ export function PracticeOverview({
                     </Text>
                     <Text variant="caption" color="textSecondary" numberOfLines={1}>
                       {row.latest_pain_score != null && row.latest_pain_score >= 7
-                        ? `Pain at ${row.latest_pain_score}/10`
+                        ? t.practice.painAt(row.latest_pain_score)
                         : quiet === null
-                          ? 'Never checked in'
-                          : `Quiet for ${quiet} day${quiet === 1 ? '' : 's'}`}
-                      {row.adherence != null ? ` · ${Math.round(row.adherence * 100)}% on plan` : ''}
+                          ? t.practice.neverCheckedIn
+                          : t.practice.quietFor(quiet)}
+                      {row.adherence != null ? t.practice.onPlan(Math.round(row.adherence * 100)) : ''}
                     </Text>
                   </View>
                   <Text variant="caption" color="accentText">
-                    Open
+                    {t.practice.open}
                   </Text>
                 </Pressable>
               );
@@ -152,9 +154,9 @@ export function PracticeOverview({
 
       {stats.unplanned.length > 0 ? (
         <Card>
-          <Text variant="heading">Waiting for a week</Text>
+          <Text variant="heading">{t.practice.waiting}</Text>
           <Text variant="caption" color="textSecondary" style={styles.note}>
-            Accounts created but nothing to train on yet.
+            {t.practice.waitingNote}
           </Text>
           <View style={styles.list}>
             {stats.unplanned.slice(0, 5).map((row, index) => (
@@ -168,7 +170,7 @@ export function PracticeOverview({
                   {row.user.full_name}
                 </Text>
                 <Text variant="caption" color="accentText">
-                  Write week
+                  {t.practice.writeWeek}
                 </Text>
               </Pressable>
             ))}
