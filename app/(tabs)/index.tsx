@@ -3,7 +3,7 @@ import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useAccess } from '@/access';
 import { useAuth } from '@/auth/AuthProvider';
 import { useCheckIns } from '@/checkin/CheckInProvider';
-import { AppHeader, ThemeToggle } from '@/components/common';
+import { AppHeader, LanguageSelect, ThemeToggle } from '@/components/common';
 import { CheckInRow, PracticeOverview, WeekStrip, WorkoutCompleteCard } from '@/components/home';
 import { SessionSummaryCard } from '@/components/session';
 import { Button, Card, Loader, Logo, Screen, Text } from '@/components/ui';
@@ -39,7 +39,12 @@ export default function HomeScreen() {
         subtitle={t.home.welcomeBack}
         title={greeting}
         center={<Logo height={width < 380 ? 26 : 34} />}
-        right={<ThemeToggle />}
+        right={
+          <View style={styles.headerActions}>
+            <LanguageSelect variant="icon" />
+            <ThemeToggle />
+          </View>
+        }
       />
 
       {isAdmin ? (
@@ -136,6 +141,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerActions: { flexDirection: 'row', gap: 8 },
   stack: { gap: 16, marginTop: 12 },
   rest: { alignItems: 'center', paddingVertical: 32 },
   notice: { alignItems: 'center', paddingVertical: 28 },

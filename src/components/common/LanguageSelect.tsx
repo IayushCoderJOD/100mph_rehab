@@ -19,8 +19,11 @@ type Anchor = { top: number; right: number };
  * The menu is drawn in a transparent Modal, measured against the pill, so it
  * floats over whatever is below on every platform. Drawn inline it would be
  * clipped by its parent on Android, and taps outside that parent never land.
+ *
+ * `icon` swaps the pill for a round button that matches ThemeToggle, for
+ * headers with no room for the language name.
  */
-export function LanguageSelect() {
+export function LanguageSelect({ variant = 'pill' }: { variant?: 'pill' | 'icon' }) {
   const { theme } = useTheme();
   const { language, setLanguage, t } = useI18n();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -56,7 +59,7 @@ export function LanguageSelect() {
         accessibilityHint={t.language.choose}
         accessibilityState={{ expanded: !!anchor }}
         style={({ pressed }) => [
-          styles.trigger,
+          variant === 'icon' ? styles.iconTrigger : styles.trigger,
           {
             borderColor: hovered || anchor ? theme.colors.borderStrong : theme.colors.border,
             backgroundColor: hovered ? theme.colors.surfaceAlt : 'transparent',
@@ -65,9 +68,15 @@ export function LanguageSelect() {
           },
         ]}
       >
-        <Ionicons name="language-outline" size={16} color={theme.colors.textSecondary} />
-        <Text variant="label">{LANGUAGE_NAME[language]}</Text>
-        <Ionicons name={anchor ? 'chevron-up' : 'chevron-down'} size={14} color={theme.colors.textMuted} />
+        {variant === 'icon' ? (
+          <Ionicons name="language-outline" size={22} color={theme.colors.textPrimary} />
+        ) : (
+          <>
+            <Ionicons name="language-outline" size={16} color={theme.colors.textSecondary} />
+            <Text variant="label">{LANGUAGE_NAME[language]}</Text>
+            <Ionicons name={anchor ? 'chevron-up' : 'chevron-down'} size={14} color={theme.colors.textMuted} />
+          </>
+        )}
       </Pressable>
 
       <Modal visible={!!anchor} transparent animationType="fade" statusBarTranslucent onRequestClose={close}>
@@ -153,6 +162,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 7,
+  },
+  // Same footprint as IconButton, so it sits beside ThemeToggle as a pair.
+  iconTrigger: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   menu: {
     position: 'absolute',
