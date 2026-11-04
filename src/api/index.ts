@@ -38,7 +38,9 @@ export type {
   RoutineResponse,
   SessionLogResponse,
   SessionPlanResponse,
+  ProfilePayload,
   UpdateMePayload,
+  UpdateUserPayload,
   UpdatePlanPayload,
   WeeklyPlanResponse,
 } from './types';

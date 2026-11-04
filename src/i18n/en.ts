@@ -347,22 +347,30 @@ export const en = {
     membership: 'Membership',
     cancelledSuffix: ' · Cancelled',
     yourDetails: 'Your Details',
+    edit: 'Edit',
     editDetails: 'Edit Details',
     addDetails: 'Add Your Details',
     security: 'Security',
     changePassword: 'Change Password',
-    note: 'Need something here changed? Drop us a line from Help & Support and we will sort it out.',
+    note: 'Need your email changed? Drop us a line from Help & Support and we will sort it out.',
   },
 
   editProfile: {
     title: 'Your Details',
     subtitle: 'How your physio reaches you, and the numbers that help them load you correctly.',
+    adminSubtitle: 'Your clients see this name on what you prescribe for them.',
+    fullName: 'FULL NAME',
+    email: 'EMAIL',
+    emailHint: 'This is the email they sign in with. If you change it, let them know.',
     phone: 'PHONE',
     dob: 'DATE OF BIRTH',
     dobPlaceholder: 'DD/MM/YYYY',
     ageHint: (age: number | null) => `That makes you ${age}.`,
+    clientAgeHint: (age: number | null) => `That makes them ${age}.`,
     height: 'HEIGHT (CM)',
     weight: 'WEIGHT (KG)',
+    badName: 'Name should be at least 2 characters.',
+    badEmail: 'Enter a valid email address.',
     badPhone: 'Phone number should be 7 to 15 digits, with an optional + and country code.',
     badDob: 'Date of birth should look like 14/03/1995.',
     futureDob: 'Date of birth has to be in the past.',
@@ -370,6 +378,13 @@ export const en = {
     badWeight: 'Weight should be in kilograms, between 2 and 500.',
     save: 'Save Details',
     footnote: 'Only you and your physio can see these.',
+  },
+
+  adminEdit: {
+    title: (firstName: string) => `Edit ${firstName}’s Details`,
+    fallbackTitle: 'Edit Details',
+    subtitle: 'Correct anything that was entered wrong, or fill in what is missing.',
+    footnote: 'They see these changes in their app straight away, and stay signed in.',
   },
 
   changePassword: {
@@ -511,6 +526,7 @@ export const en = {
     ofExercises: (done: number, total: number) => ` · ${done} of ${total} exercises`,
     staff: 'Staff',
     account: 'Account',
+    editDetails: 'Edit details',
     focusArea: 'Focus area',
     resetDone: (name: string) =>
       `New password set. Tell ${name} what it is — they have been signed out everywhere and can change it from My Account once they are back in.`,

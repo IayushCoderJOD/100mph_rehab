@@ -217,4 +217,16 @@ export type UpdateMePayload = {
   weight_kg?: number;
 };
 
+/** The Edit Details form, saved whole: a null or blank phone clears the field. */
+export type ProfilePayload = {
+  full_name: string;
+  phone: string;
+  date_of_birth: ISODate | null;
+  height_cm: number | null;
+  weight_kg: number | null;
+};
+
+/** A coach correcting a client: the same form, plus the email they sign in with. */
+export type UpdateUserPayload = ProfilePayload & { email: string };
+
 export type SetStatusPayload = { status: UserStatus };

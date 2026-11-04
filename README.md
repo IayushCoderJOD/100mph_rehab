@@ -145,6 +145,7 @@ anywhere else.
 |---|---|---|
 | `GET` | `/me` | The boot call — user, entitlement, flags |
 | `PATCH` | `/me` | `{ full_name?, timezone?, avatar_url?, date_of_birth?, height_cm?, weight_kg? }` |
+| `PUT` | `/me/profile` | `{ full_name, phone?, date_of_birth?, height_cm?, weight_kg? }` — the Edit Details form, saved whole: a null or blank optional field clears it |
 | `PUT` | `/me/program` | `{ program_id }` — the optional focus area for Learn content |
 
 ### 4.3 Content — the static catalogue
@@ -213,6 +214,7 @@ default, not an empty state.
 |---|---|---|
 | `POST` | `/admin/users` | Provision an account. This is how members get in. `program_id` optional |
 | `GET` | `/admin/users` | Raw user list |
+| `PUT` | `/admin/users/{id}` | Correct a client's details, email included, saved whole. A staff account keeps its email |
 | `PATCH` | `/admin/users/{id}/status` | `active` / `invited` / `suspended` |
 | `GET` | `/admin/clients` | The roster, with adherence and attention flags |
 | `GET` | `/admin/clients/{id}` | The whole picture of one client, in one call |
