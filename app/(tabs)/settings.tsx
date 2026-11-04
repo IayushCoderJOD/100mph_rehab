@@ -89,6 +89,18 @@ export default function SettingsScreen() {
         </SettingsSection>
       ) : null}
 
+      {/* Staff have no membership section, and this is their only way to their own details and password. */}
+      {isAdmin ? (
+        <SettingsSection label={t.settings.yourAccount}>
+          <SettingsRow
+            icon="person-outline"
+            title={t.settings.myAccount}
+            subtitle={t.settings.myAccountAdminSub}
+            onPress={() => router.push('/account')}
+          />
+        </SettingsSection>
+      ) : null}
+
       {can('program.train') ? (
         <SettingsSection label={t.settings.membership}>
           <SettingsRow
