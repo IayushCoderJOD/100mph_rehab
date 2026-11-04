@@ -10,6 +10,7 @@ export type Permission =
   | 'clients.view'
   | 'clients.assign_exercise'
   | 'clients.create'
+  | 'clients.edit'
   | 'clients.manage_status';
 
 /**
@@ -24,6 +25,7 @@ const ADMIN: Permission[] = [
   'clients.view',
   'clients.assign_exercise',
   'clients.create',
+  'clients.edit',
   'clients.manage_status',
 ];
 

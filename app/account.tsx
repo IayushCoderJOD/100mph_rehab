@@ -38,6 +38,12 @@ export default function AccountScreen() {
             {(isAdmin ? t.account.adminSince : t.common.memberSince)(formatLongDate(user.member_since))}
           </Text>
         </View>
+        <Button
+          label={t.account.edit}
+          variant="secondary"
+          fullWidth={false}
+          onPress={() => router.push('/edit-profile')}
+        />
       </Card>
 
       <Card style={styles.details}>

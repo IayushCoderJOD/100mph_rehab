@@ -27,6 +27,8 @@ export const endpoints = {
   me: {
     /** GET — the boot call. PATCH — profile fields. */
     root: '/me',
+    /** PUT — the Edit Details form, saved whole. */
+    profile: '/me/profile',
     /** PUT — set the program this member trains on. */
     program: '/me/program',
     /** PUT — change your own password; returns a fresh token pair. */

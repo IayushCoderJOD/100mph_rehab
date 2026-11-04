@@ -20,7 +20,9 @@ import {
   SessionLogResponse,
   SessionPlanResponse,
   UpdateExercisePayload,
+  ProfilePayload,
   UpdateMePayload,
+  UpdateUserPayload,
   UpdatePlanPayload,
   UploadKind,
   UploadTicket,
@@ -45,6 +47,9 @@ export const authApi = {
   me: () => api.get<MeResponse>(endpoints.me.root),
 
   updateMe: (patch: UpdateMePayload) => api.patch<MeResponse>(endpoints.me.root, patch),
+
+  /** Saves the Edit Details form whole, so a cleared field really clears. */
+  saveProfile: (profile: ProfilePayload) => api.put<MeResponse>(endpoints.me.profile, profile),
 
   setProgram: (programId: string) =>
     api.put<MeResponse>(endpoints.me.program, { program_id: programId }),
@@ -164,6 +169,10 @@ export const adminApi = {
   listUsers: () => api.get<User[]>(endpoints.admin.users),
 
   createUser: (payload: CreateUserPayload) => api.post<User>(endpoints.admin.users, payload),
+
+  /** Corrects a client's details, saved whole. Their sessions carry on. */
+  updateUser: (userId: string, payload: UpdateUserPayload) =>
+    api.put<User>(endpoints.admin.user(userId), payload),
 
   setUserStatus: (userId: string, status: UserStatus) =>
     api.patch<User>(endpoints.admin.userStatus(userId), { status }),

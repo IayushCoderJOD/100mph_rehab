@@ -32,7 +32,7 @@ export interface User {
   avatar_url: string | null;
   /** The program this person is on. Null for staff, who do not train here. */
   active_program_id: UUID | null;
-  /** Filled in by the member from Settings. Each stays null until they do. */
+  /** Filled in from Settings by the member, or by their coach. Each stays null until then. */
   date_of_birth: ISODate | null;
   height_cm: number | null;
   weight_kg: number | null;

@@ -344,9 +344,19 @@ export default function AdminClientScreen() {
       </Card>
 
       {/* ---- The person ---- */}
-      <Text variant="heading" style={styles.sectionTitle}>
-        {t.adminClient.account}
-      </Text>
+      <View style={styles.sectionHead}>
+        <Text variant="heading" style={styles.sectionHeadTitle}>
+          {t.adminClient.account}
+        </Text>
+        {can('clients.edit') ? (
+          <Button
+            label={t.adminClient.editDetails}
+            variant="secondary"
+            fullWidth={false}
+            onPress={() => router.push(`/admin/edit/${client.id}`)}
+          />
+        ) : null}
+      </View>
       <Card style={styles.details}>
         <DetailRow label={t.common.email} value={client.email} />
         <DetailRow label={t.common.phone} value={client.phone || '—'} />

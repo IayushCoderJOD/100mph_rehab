@@ -4,6 +4,7 @@ import {
   ClientSummary,
   CreateUserPayload,
   UpdatePlanPayload,
+  UpdateUserPayload,
   WeeklyPlanResponse,
   adminApi,
   messageFor,
@@ -45,6 +46,7 @@ type DirectoryContextValue = {
   userById: (id: string | null) => User | null;
   summaryById: (id: string | null) => ClientSummary | null;
   createUser: (input: CreateUserInput) => Promise<Result<User>>;
+  updateUser: (userId: string, payload: UpdateUserPayload) => Promise<Result<User>>;
   setUserStatus: (userId: string, status: UserStatus) => Promise<Result<User>>;
   /** Deletes the account and all of its data; the client leaves the roster at once. */
   deleteUser: (userId: string) => Promise<Result>;
@@ -124,6 +126,19 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [reload]
+  );
+
+  const updateUser = useCallback(
+    async (userId: string, payload: UpdateUserPayload): Promise<Result<User>> => {
+      try {
+        const updated = await adminApi.updateUser(userId, payload);
+        patchUser(updated);
+        return { ok: true, value: updated };
+      } catch (err) {
+        return { ok: false, error: messageFor(err) };
+      }
+    },
+    [patchUser]
   );
 
   const setUserStatus = useCallback(
@@ -218,6 +233,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       },
       summaryById: (id) => (id ? (roster.find((row) => row.user.id === id) ?? null) : null),
       createUser,
+      updateUser,
       setUserStatus,
       deleteUser,
       assignExercises,
@@ -231,6 +247,7 @@ export function DirectoryProvider({ children }: { children: React.ReactNode }) {
       error,
       currentUser,
       createUser,
+      updateUser,
       setUserStatus,
       deleteUser,
       assignExercises,
