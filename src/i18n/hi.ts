@@ -332,6 +332,7 @@ export const hi: Strings = {
     membership: 'आपकी सदस्यता',
     myAccount: 'मेरा अकाउंट',
     myAccountSub: 'ईमेल, फ़ोन, उम्र, लंबाई और वज़न',
+    myAccountAdminSub: 'आपका नाम, फ़ोन और पासवर्ड',
     manageMembership: 'सदस्यता मैनेज करें',
     membershipActive: 'अवधि बदलें या रद्द करें',
     membershipCancelled: 'रद्द — कभी भी फिर शुरू करें',

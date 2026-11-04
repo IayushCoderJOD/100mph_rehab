@@ -317,6 +317,7 @@ export const en = {
     membership: 'Your Membership',
     myAccount: 'My Account',
     myAccountSub: 'Email, phone, age, height and weight',
+    myAccountAdminSub: 'Your name, phone and password',
     manageMembership: 'Manage Membership',
     membershipActive: 'Change duration or cancel',
     membershipCancelled: 'Cancelled — resume any time',
