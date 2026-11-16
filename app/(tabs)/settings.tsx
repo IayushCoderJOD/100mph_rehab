@@ -179,6 +179,21 @@ export default function SettingsScreen() {
         </SettingsSection>
       ) : null}
 
+      <SettingsSection label={t.legal.section} footnote={t.legal.disclaimer}>
+        <SettingsRow
+          icon="shield-checkmark-outline"
+          title={t.legal.privacyTitle}
+          subtitle={t.legal.privacySub}
+          onPress={() => router.push('/privacy')}
+        />
+        <SettingsRow
+          icon="document-text-outline"
+          title={t.legal.deletionTitle}
+          subtitle={t.legal.deletionRowSub}
+          onPress={() => router.push('/account-deletion')}
+        />
+      </SettingsSection>
+
       <View style={styles.logout}>
         <Button label={t.settings.logout} variant="secondary" onPress={handleLogout} />
       </View>

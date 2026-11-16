@@ -111,6 +111,20 @@ export default function LoginScreen() {
           {t.login.note}
           {features.forgotPassword ? '' : t.login.noteReset}
         </Text>
+        <Text variant="caption" color="textMuted" align="center" style={styles.legal}>
+          {t.legal.loginAgree}{' '}
+          <Text
+            variant="caption"
+            color="accentText"
+            accessibilityRole="link"
+            onPress={() => router.push('/privacy')}
+          >
+            {t.legal.privacyTitle}
+          </Text>
+        </Text>
+        <Text variant="caption" color="textMuted" align="center" style={styles.legal}>
+          {t.legal.disclaimer}
+        </Text>
       </View>
 
       {__DEV__ ? (
@@ -150,6 +164,7 @@ const styles = StyleSheet.create({
   error: { marginTop: 18 },
   footer: { marginTop: 40 },
   note: { marginTop: 16 },
+  legal: { marginTop: 12, lineHeight: 18 },
   demo: { marginTop: 28, gap: 10 },
   demoLabel: { letterSpacing: 1.2 },
   demoRow: { gap: 2 },

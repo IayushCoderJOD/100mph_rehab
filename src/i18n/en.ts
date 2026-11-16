@@ -405,6 +405,142 @@ export const en = {
     footnote: 'Forgotten your current one? Your coach can set a new one for you.',
   },
 
+  /**
+   * The privacy policy, the public "how to delete your account" page and the
+   * medical disclaimer. The app stores read these pages, so keep them true to
+   * what the app and the API actually do — a new kind of data collected means
+   * a line here, in hi.ts, and in the Play Console data safety form.
+   */
+  legal: {
+    section: 'Legal',
+    privacyTitle: 'Privacy Policy',
+    privacySub: 'What we collect and how it is used',
+    deletionTitle: 'Delete Your Account',
+    deletionRowSub: 'How to remove your account and data',
+    disclaimerTitle: 'Medical disclaimer',
+    disclaimer:
+      '100mph : Go shows the exercise plan your physio wrote for you. It is not a medical device and ' +
+      'does not diagnose or treat any condition. It does not replace advice from a qualified ' +
+      'professional. Stop and contact your physio or doctor if an exercise causes sharp or unusual ' +
+      'pain, and call your local emergency number in an emergency.',
+    loginAgree: 'By signing in you agree to our',
+    effective: 'Effective 16 November 2026',
+    privacyIntro:
+      '100mph : Go is run by 100mph, a physiotherapy and performance practice in India ("we", "us"). ' +
+      'This policy explains what the app and its website collect about you, why, and the choices you have.',
+    privacy: (email: string) => [
+      {
+        heading: 'What we collect',
+        body: [
+          'Account details: your name, email address and phone number, entered by the practice when it opens your account.',
+          'Profile details you may add: date of birth, height and weight.',
+          'Health and training records: your daily check-ins (pain score, where it hurts, your notes), the sessions and exercises you complete, your weekly plan and your progress.',
+          'Security records: sign-in attempts with the email used and the network (IP) address, and the sign-in tokens that keep you logged in.',
+          'On your device only: your language and theme choice, and your sign-in tokens in the device\'s secure storage.',
+        ],
+      },
+      {
+        heading: 'What we do not collect',
+        body: [
+          'No location, contacts, photos, camera, microphone or advertising ID.',
+          'No advertising and no third-party analytics or tracking.',
+          'No payment details.',
+        ],
+      },
+      {
+        heading: 'Why we use it',
+        body: [
+          'To sign you in and keep your account secure.',
+          'To show you your plan and let your physio see how you are doing, so they can adjust your rehab.',
+          'To answer you when you write to us.',
+          'We use your data on the basis of your consent, given when you ask the practice to open an account and use the app.',
+        ],
+      },
+      {
+        heading: 'Who can see it',
+        body: [
+          'You, and the 100mph staff who look after your rehab.',
+          'The companies that host the app for us (cloud servers, database and video delivery). They process the data on our instructions and their servers may be outside India.',
+          'We do not sell your data or share it for advertising. We may disclose it if the law requires us to.',
+        ],
+      },
+      {
+        heading: 'How it is protected',
+        body: [
+          'Everything travels over an encrypted (HTTPS) connection.',
+          'Passwords are stored as a one-way hash, never as plain text.',
+          'Only your physio and practice staff accounts can open client records.',
+        ],
+      },
+      {
+        heading: 'How long we keep it',
+        body: [
+          'For as long as your account exists.',
+          'When your account is deleted, your profile, plan, sessions, check-ins, pain scores, notes and progress are removed from our database straight away. Security records of sign-in attempts may be kept for a short time to protect against misuse.',
+        ],
+      },
+      {
+        heading: 'Your choices and rights',
+        body: [
+          'See and correct your details in Settings → My Account.',
+          'Delete your account and data at any time in Settings → Delete Account, or by writing to us.',
+          `Ask for a copy of your data, withdraw your consent, or raise a complaint by writing to ${email}. We reply within 30 days.`,
+          'If you are in India you also have the rights given by the Digital Personal Data Protection Act, 2023, including the right to complain to the Data Protection Board.',
+        ],
+      },
+      {
+        heading: 'Children',
+        body: [
+          'There is no public sign-up: every account is opened by the practice. For anyone under 18, we open an account only with the consent of a parent or guardian, who can ask us to see or delete the child\'s data at any time.',
+        ],
+      },
+      {
+        heading: 'Changes',
+        body: ['If this policy changes we will update this page and its date. Significant changes will be announced in the app.'],
+      },
+      {
+        heading: 'Contact',
+        body: [`100mph — ${email}`],
+      },
+    ],
+    deletionIntro:
+      'You can delete your 100mph : Go account, and everything recorded about you, at any time. It is permanent.',
+    deletionSteps: (email: string) => [
+      {
+        heading: 'In the app or on the website',
+        body: [
+          '1. Sign in.',
+          '2. Open Settings.',
+          '3. Tap Delete Account at the bottom.',
+          '4. Enter your password and confirm.',
+        ],
+      },
+      {
+        heading: 'Without signing in',
+        body: [
+          `Email ${email} from the address on your account with the subject "Delete my account". We delete it within 7 days and confirm by reply.`,
+        ],
+      },
+      {
+        heading: 'What is deleted',
+        body: [
+          'Your name, email, phone, date of birth, height and weight.',
+          'Your weekly plan and assigned exercises.',
+          'Every session, check-in, pain score, note and progress record.',
+          'Your sign-in on every device.',
+        ],
+      },
+      {
+        heading: 'What is kept',
+        body: [
+          'Nothing that identifies your health or training. Security records of sign-in attempts may be kept for a short time to protect against misuse.',
+        ],
+      },
+    ],
+    emailUs: 'Email us',
+    readPrivacy: 'Read the Privacy Policy',
+  },
+
   deleteAccount: {
     memberLoses: [
       'Your weekly plan and the extra exercises from your physio',

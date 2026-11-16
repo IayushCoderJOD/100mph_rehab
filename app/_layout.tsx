@@ -52,6 +52,11 @@ function RootNavigator() {
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
 
+        {/* Public either way: the app stores link to these, and someone who
+            has uninstalled the app must still be able to read them. */}
+        <Stack.Screen name="privacy" />
+        <Stack.Screen name="account-deletion" />
+
         <Stack.Protected guard={isAuthenticated}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="session" options={{ presentation: 'modal' }} />
